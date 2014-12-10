@@ -1,9 +1,8 @@
-
 //#####################################################
 //#####################################################
 
 // Open Horn Midi system / "OHMs"
-// Arduino Micro - Main Code v0.36
+// Arduino Micro - Main Code v0.38
 // Copyright 2014, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -42,14 +41,14 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KEY AND NOTE VARIABLES:
 
-//Array of all pins with resistive touch switches - In descending fingering order: 
+//Array of all pins with resistive touch switches - In descending fingering order:
 //             "" oUp oDn sF  B  A  G  G# A# F  E   D   D# ""
 byte keyPins[] = {
   A1, A2, A3,   4,  5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 //(octaves)     HD  B  A  G  Ab Bb LC  F   E   D   Eb  LC/LBb
-  
+ 
 //        Pin = 14; // MISO pin
-//        Pin = 15; // SCK pin 
+//        Pin = 15; // SCK pin
 #define NUMKEYS sizeof(keyPins)
 
 #define NUMNOTEKEYS 12
@@ -86,7 +85,7 @@ byte eFlat[NUMNOTEKEYS] = {
   0,  1, 1, 1,  0, 0, 0,  1, 1, 1,  1, 0};
 byte dNat[NUMNOTEKEYS] = {
   0,  1, 1, 1,  0, 0, 0,  1, 1, 1,  0, 0};
-  
+ 
 byte lowCSharp[NUMNOTEKEYS] = {
   0,  1, 1, 1,  1, 0, 0,  1, 1, 1,  0, 1};
 byte lowCNat[NUMNOTEKEYS] = {
@@ -95,21 +94,21 @@ byte lowBNat[NUMNOTEKEYS] = {
   0,  1, 1, 1,  0, 0, 1,  1, 1, 1,  0, 0};
 byte lowBFlat[NUMNOTEKEYS] = {
   0,  1, 1, 1,  0, 0, 1,  1, 1, 1,  0, 1};
-  
+ 
 
 
 
-//Main array which stores the current state of each key:
+//Main array which stores the current state of each key pin:
 byte keysPressed[NUMKEYS];
 
 // Another array which stores the previous state for comparison:
 byte lastPressed[NUMKEYS];
 
-// A shorter version of the original key-array, with the octaves removed
+// A shorter version of the original key-array, with the octave key pins removed
 byte noteKeysPressed[NUMNOTEKEYS];
 boolean newKeys;
 
-byte baseNote; // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63) 
+byte baseNote; // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63)
 byte currentNote; // This is the complete, calculated note, including octave.
 byte lastNote; // This is the last played note, for comparison with new readings.
 int octave = 0; // A value between -48 and 60 (in increments of 12). Set by setOctave()
@@ -131,59 +130,8 @@ byte refBend;
 int potm;
 
 byte bendCenter;
-byte bendLowBuf;
-byte bendHighBuf;
-
-
-
-
-//////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
-// PREASSURE SENSOR VARIABLES:
-
-// Pins for SDA and SCL are automatically set to pin2 (data) and pin3 (clock) by the BMP180 library (for Arduino Micro)
-
-//int tempCount = 0;
-//const int tempCountConstant = 20; // During reference measurements this is the number of Pressure measurements for each temp measurement
-//const int refCountConstant = 100;
-//const int pressBuffer = 3; // Buffer value for pressure reading noise. Lower than this difference to the ref pressure is ignored
-//
-//byte waitTime = 0; // This value is defined by the BMP180 when you ask it for a measurement.  
-//                   // Value is then used in "timer1" to know when to read the reply
-//unsigned long timer1;
-//char status; // This is used together with "timer1" to keep track of the waitTime between temp or pressure measurements
-//             // It is defined by the BMP180 and can be 0 or 1 or a small (byte) value in milliseconds.
-//int currentTemp;
-//int currentPressure = 0;
-//int refPressure = 0;    // refPressure is calculated by averaging "refCountConstant" number of pressure readings
-//
-//int refCalcVal;         // refCalcVal is an intermediary step of adding ref and current pressures, before dividing by 2 to get the new ref
-//
-//byte refDone = 0;          // When this value is set to 0, the next "refCountConstant" number of 
-//// pressure measurements will be used to calculate a new reference pressure.
-//// Value starts at 0. When ref measurement is done it is automatically set to 1
-//// It should be manually set back to 0 for a new reference measurement 
-//// (button / rotary encoder ??)
-//byte refCounter = 0; // This keeps track of the number of reference pressure measurements.
-//// so that when refCounter >= refCountConstant, refDone is set to 1.
-//
-//byte velocity;     // This holds the mapped value of the currentPressure reading. Always a byte from 0-127.
-//byte lastVelocity; // This holds the last velocity value for comparison
-//
-//int newVelocity = 0;
-//
-//double T,P,p0,a;  // These are the variables for holding the internal values of the BMP180 library
-//// T = "Temperature", P = "Pressure", p0 = "pressure at 0 meters altitude", a = "altitude" 
-//// "double" means "double precision float", which in arduino is the same size as "float"
-//
-//char pressureStatus = 1; // Used in "void updatePressure()". Has 4 modes: 
-//// "1" New temp reading / "2" main temp reading / "3" new pressure reading / "4" main pressure reading
-//// "1" and "2" (temperature) are only used for reference measurements, and are normally skipped in the loop.
-//
-//SFE_BMP180 pressure; // Create a pressure sensor object, called "pressure", from the BMP180 library
-//
-////#define ALTITUDE 0.0 // Float value for altitude calculation. Not used here
-
+byte bendLowBuf = 8;
+byte bendHighBuf = 8;
 
 
 
@@ -199,13 +147,13 @@ byte harmonic = 0;
 
 // harmonic limit constants for bite sensor:
 
-const byte firstHarmonic = 800;
-const byte secondHarmonic = 500;
-const byte thirdHarmonic = 350;
-const byte fourthHarmonic = 275;
-const byte fifthHarmonic = 225;
-const byte sixthHarmonic = 190;
-const byte seventhHarmonic = 175;
+//const byte firstHarmonic = 800;
+//const byte secondHarmonic = 500;
+//const byte thirdHarmonic = 350;
+//const byte fourthHarmonic = 275;
+//const byte fifthHarmonic = 225;
+//const byte sixthHarmonic = 190;
+//const byte seventhHarmonic = 175;
 
 
 
@@ -223,7 +171,7 @@ int newVelocity = 0;
 
 ///////////////////////////////////
 //Median filter / Sort variables:
-int arraySize = 10; 
+int arraySize = 10;
 int breathArray[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
@@ -231,11 +179,11 @@ int breathArray[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
-// ROTARY ENCODER VARIABLES:
+// ROTARY ENCODER VARIABLES
 
 int rotEncPin1 = 0;
 int rotEncPin2 = 1;
-int rotEncButtonPin = A4; 
+int rotEncButtonPin = A4;
 
 volatile long lastEncoded = 0;
 volatile long encoderValue = 0;
@@ -259,11 +207,11 @@ byte bankSelect = 0;
 byte modulationControl = 1;
 
 
-boolean sendMessage = 0; // If either of velocity, note or pitchBend have changed since last reading, this variable 
+boolean sendMessage = 0; // If either of velocity, note or pitchBend have changed since last reading, this variable
 // is set to 1, and a new midi message will be sent this time around the loop.
 
 //Pin = 14; // MISO pin
-//Pin = 15; // SCK pin 
+//Pin = 15; // SCK pin
 //Pin = 16; // MOSI pin
 
 ////Create a SoftwareSerial instance for sending MIDI commands out.
@@ -290,18 +238,9 @@ void setup(){
   Serial.begin(9600);
   midiSerial.begin(31250);
 
-//  // Initialize the pressure sensor:
-//  if (pressure.begin())
-//    Serial.println("BMP180 init success");
-//  else
-//  {
-//    Serial.println("BMP180 init fail\n\n");
-//    while(1); // If the BMP180 doesn't initiate, pause forever.
-//  }
-
 
   // ROTARY ENCODER SETUP:
-  pinMode(rotEncPin1, INPUT); 
+  pinMode(rotEncPin1, INPUT);
   pinMode(rotEncPin2, INPUT);
   pinMode(rotEncButtonPin, INPUT);
 
@@ -310,12 +249,12 @@ void setup(){
   digitalWrite(rotEncButtonPin, HIGH); //turn pullup resistor on
 
   //call updateEncoder() when any high/low change seen
-  //on interrupt 2 (pin 0), or interrupt 3 (pin 1) 
-  attachInterrupt(2, rotEncUpdate, CHANGE); 
+  //on interrupt 2 (pin 0), or interrupt 3 (pin 1)
+  attachInterrupt(2, rotEncUpdate, CHANGE);
   attachInterrupt(3, rotEncUpdate, CHANGE);
-  
+ 
   potm = analogRead(bendPin);
-  bendCenter = map(potm, 440, 675, 0, 127);
+  bendCenter = map(potm, 451, 670, 0, 127);
   bendLowBuf = bendCenter - 5;
   bendHighBuf = bendCenter + 5;
 }
@@ -324,9 +263,9 @@ void setup(){
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
-// MAIN LOOP:
+//#################################################################
+//#################################################################
+//############ MAIN LOOP:
 
 
 void loop(){
@@ -334,42 +273,15 @@ void loop(){
   byte i;
 //  timer1 = millis();              // Update timer1, to keep track of the pressure sensor wait time
 //
+
+
   updatePressure();               // Updates pressure and velocity values
   if(velocity != lastVelocity){
     sendMessage = 1;
-  }    // If the velocity has changed since last reading, "sendMessage" is set to 1, 
-//    // and a new midi message will be sent this time around the loop.    
-//  }
-//
-//  ///////////////////////////////////////////////////////////////////////
-//  // Pressure reference measurements, only done at startup, or on command:
-//  if(refDone == 0){                 // If the reference measurement series has not been done, or a new one has been requested, then do this loop:
-//    if(newVelocity == 1){           // If there is a new complete pressure reading.
-//      if(refCounter == 0){          // If it's the first time through
-//        refPressure = currentPressure ;
-//        refCounter ++;
-//      }
-//      else if(refCounter > 0 && refCounter < refCountConstant){ // If it's between the 2nd and the "refCountConstant" times through.
-//        refCalcVal = refPressure + currentPressure;             // Partial calculation of average
-//        refPressure = refCalcVal / 2;                           // refPressure is the average of the current ref and the new reading
-//        refCounter ++;
-//      }
-//      else if(refCounter >= refCountConstant){                  // if it's the last time through.
-//        refDone = 1;          // Reference is done. Don't do this loop again til asked.
-//        refCounter = 0;
-//        
-//
-//      }
-//    }
-//  } // End of pressure reference measurements
-//  ///////////////////////////////////////////////////////////////////////
-
-
-  //    Serial.print("Time in seconds: ");
-  //    Serial.println(timer1 / 1000);
-  //    Serial.print("Velocity:        ");
-  //    Serial.println(velocity);
-  //    delay(25);
+  }    
+  
+  
+  
   readKeys(); // This populates the "keysPressed[]" array with fresh readings from the 12 touch pins
 
     /////////////////////////////////////////////////
@@ -381,34 +293,35 @@ void loop(){
   // // End debug /////////////////////////////////
 
 
-  // Both "pickNote()" and "setOctave()" use the "keysPressed[]" array as an input
 
-  pickNote();                    // picknote() function sets the "baseNote" as one of
-  // midi note pitches from D natural up to middle C sharp, by  
-  // comparing "keysPressed[]" to all accepted key combinations. 
+  pickNote();                    // picknote() function sets the "baseNote" as a
+  // midi note pitch, by comparing "keysPressed[]" to all accepted key combinations.
+
 
 
   setOctave();                  // setOctave() function keeps track of the octave keys in the keysPressed[] array,
-  //  if(octave != lastOctave){     // and updates it as an int between -48 and 60 (in increments of 12), which is
-  //    sendMessage = 1;            // added to / subtracted from the note value
-  //    lastOctave = octave;
-  //  }
+                           // and updates it as an int between -48 and 60 (in increments of 12), which is
+                           // added to / subtracted from the note value
+ 
 
-  currentNote = baseNote + octave + harmonic;  //Calculate final note value for midi, including octave
 
-    if(currentNote != lastNote){   // Check for new note.
+  currentNote = baseNote + octave;  //Calculate final note value for midi, including octave
+
+
+
+  if(currentNote != lastNote){   // Check for new note.
     sendMessage = 1;             // In case of new note, request new midi message
   }
 
-  rotEncUpdate();
-  if(encoderOutput != lastEncoderOutput){
-    lastEncoderOutput = encoderOutput; 
-    sendMessage = 1;
-  }
+//  rotEncUpdate();
+//  if(encoderOutput != lastEncoderOutput){
+//    lastEncoderOutput = encoderOutput;
+//    sendMessage = 1;
+//  }
 
   ////////////////////////////////////////////
   // Run the readBend function to update "bendValue":
-  readBend();  // Update the bend value from the neck sensor and map it to 0 - 127.
+  readBend();  // Updates the bend value from the neck sensor and maps it to 0 - 127.
   if(bendVal != lastBend){
     sendMessage = 1;
 
@@ -419,13 +332,17 @@ void loop(){
 //    sendMessage = 1;
 //  }
 
-  /////////////////////////////////////////////
+
+
+//###############################################
+//######## MIDI MESSAGE SECTION:
+
+
   if(sendMessage == 1){
 
     if(currentNote != lastNote){
       sendMidi(noteON, currentNote, velocity);
       sendMidi(noteON, lastNote, 0);
-      lastNote = currentNote;
     }
 
     if(velocity != 0 && lastVelocity == 0){
@@ -443,35 +360,40 @@ void loop(){
 
     if(bendVal != lastBend){
       sendMidi(pitchBend, 0, bendVal);
-      lastBend = bendVal;
     }
 //    if(biteVal != lastBite){
 //      sendMidi(modulationControl, 0, biteVal);
 //      lastBite = biteVal;
 //    }
-    if(velocity != lastVelocity){
-      lastVelocity = velocity;
+
+    lastVelocity = velocity;
+    lastNote = currentNote;
+    lastBend = bendVal;
+
+
+
+//#######################        
+//######### MAIN DEBUG:
+
+    if(sendMessage == 1){
+      Serial.println();
+  //    Serial.print("Reference pressure:       ");
+  //    Serial.println(refPressure);
+  //    Serial.print("Current pressure:         ");
+  //    Serial.println(currentPressure);
+      Serial.print("Velocity:      ");
+      Serial.println(velocity);
+      Serial.print("Current Note:             ");
+      Serial.println(currentNote);
+      Serial.print("Note bend value:          ");
+      Serial.println(bendVal);
+      Serial.print("Rotary encoder position:  ");
+      Serial.println(encoderOutput);
+      delay(20);
     }
 
 
     sendMessage = 0;
-    
-//######### GENERAL DEBUG:
-//    Serial.println();
-////    Serial.print("Reference pressure:       ");
-////    Serial.println(refPressure);
-////    Serial.print("Current pressure:         ");
-////    Serial.println(currentPressure);
-//    Serial.print("Velocity:      ");
-//    Serial.println(velocity);
-//    Serial.print("Current Note:             ");
-//    Serial.println(currentNote);
-//    Serial.print("Note bend value:          ");
-//    Serial.println(bendVal);
-//    Serial.print("Rotary encoder position:  ");
-//    Serial.println(encoderOutput);
-//    delay(20);
-
 
   }
 } // End of main loop
@@ -484,7 +406,157 @@ void loop(){
 
 //#################################################################
 //######################### Functions: ############################
-//################################################################# 
+//#################################################################
+
+
+
+
+
+//###################################################################
+//############ FSR Breath pressure function - Sets velocity:
+
+void updatePressure(){
+  int i;
+  for(i = 0; i < arraySize; i++){    
+    fsrBreathTemp = analogRead(fsrBreathPin);
+    breathArray[i] = fsrBreathTemp;
+  }
+  isort(breathArray,arraySize);
+  fsrBreathRead = breathArray[arraySize / 2];
+  if(fsrBreathRead > 780){   
+    fsrBreathPressure = map(fsrBreathRead, 1023, 781, 0, 60);
+  }
+  else if(fsrBreathRead <= 780){   
+    fsrBreathPressure = map(fsrBreathRead, 780, 500, 61, 127);
+  }
+  if(fsrBreathPressure > 127){
+    fsrBreathPressure = 127;
+  }
+  if(fsrBreathPressure != fsrBreathSaved){
+    velocity = fsrBreathPressure;
+    fsrBreathSaved = fsrBreathPressure;
+  }
+}
+
+
+
+//###################################################################
+//###################################################################
+// SORT FUNCTION FOR THE MEDIAN FILTER ON BREATH DATA:
+
+void isort(int *a, int n){
+// *a is an array pointer function - n is the array size
+
+  for (int i = 1; i < n; ++i)
+  {
+    int j = a[i];
+    int k;
+    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
+    {
+      a[k + 1] = a[k];
+    }
+    a[k + 1] = j;
+  }
+
+} 
+
+//#################################################################
+//#################################################################
+// READ BITE SENSOR FUNCTION:
+
+//void readBite(){
+//  biteRead = analogRead(bitePin);
+//  biteVal = map(biteRead, 250, 0, 0, 127);
+//
+//  if(biteVal <= firstHarmonic && biteVal > secondHarmonic){
+//    harmonic = 12;
+//  }
+//  else if(biteVal <= secondHarmonic && biteVal > thirdHarmonic){
+//    harmonic = 19;
+//  }
+//  else if(biteVal <= thirdHarmonic && biteVal > fourthHarmonic){
+//    harmonic = 24;
+//  }
+//  else if(biteVal <= fourthHarmonic && biteVal < fifthHarmonic){
+//    harmonic = 28;
+//  }
+//  else if(biteVal <= fifthHarmonic && biteVal < sixthHarmonic){
+//    harmonic = 31;
+//  }
+//  else if(biteVal <= sixthHarmonic && biteVal < seventhHarmonic){
+//    harmonic = 34;
+//  }
+//  else if(biteVal <= seventhHarmonic){
+//    harmonic = 36;
+//  }
+//}
+//      
+
+
+
+
+
+//#################################################################
+//#################################################################
+// READ BEND SENSOR FUNCTION:
+
+void readBend(){
+  potm = analogRead(bendPin);
+  bendTemp = map(potm, 451, 670, 0, 127);
+  if(bendTemp != lastBend){
+    if(bendTemp != refBend){
+      if(bendTemp <= bendLowBuf){
+      bendVal = map(bendTemp, 0, bendLowBuf, 0, 60);
+      }
+      else if(bendTemp >= bendHighBuf){
+        bendVal = map(bendTemp, bendHighBuf, 127, 65, 127);
+      }
+      // bendVal is the output value.
+      else if(bendVal < bendHighBuf && bendVal > bendLowBuf){
+        bendVal = 64;
+      }
+    }
+  }
+      
+}
+
+
+
+
+//#################################################################
+//#################################################################
+// MIDI-Message function:
+
+// sendMidi parameters  for noteOn are: Command, midiNote, midiVelocity
+//                      for pitchBend are: Command, lsbBend, msbBend
+void sendMidi(int command, int data1, int data2){
+  midiSerial.write(command);//send command (noteOn / pitchBend etc)
+  midiSerial.write(data1);//send data1 (pitch, lsbBend etc)
+  midiSerial.write(data2);//send data2 (velocity, msbBend etc)
+}
+
+
+
+//#################################################################
+//#################################################################
+//ROTARY ENCODER UPDATE FUNCTION:
+//Called from interrupts on pins 0 and 1.
+//encoderOutput is a continuously changing value, counted from 0 at start position.
+
+void rotEncUpdate(){
+  int MSB = digitalRead(rotEncPin1); //MSB = most significant bit
+  int LSB = digitalRead(rotEncPin2); //LSB = least significant bit
+
+  int encoded = (MSB << 1) | LSB; //converting the 2 pin value to single number
+  int sum  = (lastEncoded << 2) | encoded; //adding it to the previous encoded value
+
+  if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) encoderValue ++;
+  if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) encoderValue --;
+
+
+  lastEncoded = encoded;
+  encoderOutput = encoderValue / 4; //This encoder shows 4 actual steps in software per physical step.
+}
 
 
 
@@ -517,103 +589,26 @@ void readKeys(){
 
 
 
-
-
 //#################################################################
 //#################################################################
-// READ BEND SENSOR FUNCTION:
-
-void readBend(){
-  potm = analogRead(bendPin);
-  bendTemp = map(potm, 440, 675, 0, 127);
-  if(bendTemp != lastBend){
-    if(bendTemp != refBend){
-      if(bendTemp <= bendLowBuf){
-      bendVal = map(bendTemp, 0, bendLowBuf, 0, 61);
-      }
-      else if(bendTemp >= bendHighBuf){
-        bendVal = map(bendTemp, bendHighBuf, 127, 61, 127);
-      }
-      // This is the output value.
-      else if(bendVal < bendHighBuf && bendVal > bendLowBuf){
-        bendVal = 61;
-      }
-      refBend = lastBend;
-    }
+// DEBOUNCE:
+// Debounce function for buttons and keys
+boolean debounce(byte pin, boolean last, byte debounceTime){
+  boolean current = digitalRead(pin);
+  if(last != current){
+    delay(debounceTime);
+    current = digitalRead(pin);
   }
-      
+  return current;
 }
-
-
-
-//###################################################################
-// FSR Breath pressure function - Sets velocity:
-/////////////////////////////////////////////////////////
-void updatePressure(){
-  int i;
-  for(i = 0; i < arraySize; i++){	
-    fsrBreathTemp = analogRead(fsrBreathPin);
-    breathArray[i] = fsrBreathTemp;
-  }
-  isort(breathArray,arraySize);
-  fsrBreathRead = breathArray[arraySize / 2];
-  if(fsrBreathRead > 780){   
-    fsrBreathPressure = map(fsrBreathRead, 1023, 781, 0, 60);
-  }
-  else if(fsrBreathRead <= 780){   
-    fsrBreathPressure = map(fsrBreathRead, 780, 500, 61, 127);
-  }
-  if(fsrBreathPressure > 127){
-    fsrBreathPressure = 127;
-  }
-  if(fsrBreathPressure != fsrBreathSaved){
-    velocity = fsrBreathPressure;
-    fsrBreathSaved = fsrBreathPressure;
-  }
-}
-
-//#################################################################
-//#################################################################
-// READ BITE SENSOR FUNCTION:
-
-void readBite(){
-  biteRead = analogRead(bitePin);
-  biteVal = map(biteRead, 250, 0, 0, 127);
-
-  if(biteVal <= firstHarmonic && biteVal > secondHarmonic){
-    harmonic = 12;
-  }
-  else if(biteVal <= secondHarmonic && biteVal > thirdHarmonic){
-    harmonic = 19;
-  }
-  else if(biteVal <= thirdHarmonic && biteVal > fourthHarmonic){
-    harmonic = 24;
-  }
-  else if(biteVal <= fourthHarmonic && biteVal < fifthHarmonic){
-    harmonic = 28;
-  }
-  else if(biteVal <= fifthHarmonic && biteVal < sixthHarmonic){
-    harmonic = 31;
-  }
-  else if(biteVal <= sixthHarmonic && biteVal < seventhHarmonic){
-    harmonic = 34;
-  }
-  else if(biteVal <= seventhHarmonic){
-    harmonic = 36;
-  }
-}
-      
-
-
 
 
 //#################################################################
 //#################################################################
 // PICK A NOTE:
-// Compare keysPressed[] from [3] to [12] to known key combinations, 
-// and set "baseNote" as a midi pitch between between 50 and 61, notes 
-// from dNat to cSharp:
-void pickNote(){ 
+// Compare keysPressed[] from [3] to [12] to known key combinations,
+// and set "baseNote" as a note between 46 and 63
+void pickNote(){
   int i;
   boolean correct = 0;
 
@@ -823,7 +818,7 @@ void pickNote(){
       }
     }
   }
-  
+ 
   // Test for aNat:    
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
@@ -858,7 +853,7 @@ void pickNote(){
     }
   }
 
-  // Test for aFlat: 
+  // Test for aFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -891,7 +886,7 @@ void pickNote(){
       }
     }
   }
-  
+ 
   // Test for gNat:  
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
@@ -925,7 +920,7 @@ void pickNote(){
       }
     }
   }
-  
+ 
   // Test for fSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
@@ -1062,7 +1057,7 @@ void pickNote(){
     }
   }
 
-  // Test for dNat: 
+  // Test for dNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -1096,7 +1091,7 @@ void pickNote(){
     }
   }
 
-  // Test for lowCSharp: 
+  // Test for lowCSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -1129,8 +1124,8 @@ void pickNote(){
       }
     }
   }
-  
-  // Test for lowCNat: 
+ 
+  // Test for lowCNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -1163,8 +1158,8 @@ void pickNote(){
       }
     }
   }
-  
-  // Test for lowBNat: 
+ 
+  // Test for lowBNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -1197,8 +1192,8 @@ void pickNote(){
       }
     }
   }
-  
-  // Test for lowBFlat: 
+ 
+  // Test for lowBFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       
@@ -1237,6 +1232,8 @@ void pickNote(){
 }  // End of "void pickNote()"
 
 
+
+
 //#################################################################
 //#################################################################
 // Octave Update Function:
@@ -1257,179 +1254,4 @@ void setOctave(){
   if(keysPressed[0] == 1 && keysPressed[1] == 1){
     octave = -2;
   }
-}
-
-
-/// OLD OCTAVE FUNCTION:
-//void setOctave(){
-//  if(keysPressed[0] == 1 && lastPressed[0] == 0){
-//    octave = octave + 12;
-//    if(octave > 60){
-//      octave = 60;
-//    }
-//  }
-//  if(keysPressed[1] == 1 && lastPressed[1] == 0){
-//    octave = octave - 12;
-//    if(octave + 48 < 0){
-//      octave = octave + 12;
-//    }
-//  }
-//}
-
-
-//#################################################################
-//#################################################################
-// MIDI-Message function:
-
-// sendMidi parameters  for noteOn are: Command, midiNote, midiVelocity
-//                      for pitchBend are: Command, lsbBend, msbBend
-void sendMidi(int command, int data1, int data2){ 
-  midiSerial.write(command);//send command (noteOn / pitchBend etc)
-  midiSerial.write(data1);//send data1 (pitch, lsbBend etc)
-  midiSerial.write(data2);//send data2 (velocity, msbBend etc)
-}
-
-
-
-
-
-//
-//void updatePressure(){
-//  int i;
-//  for(i = 0; i < 5; i++){
-//    fsrBreathRead = analogRead(fsrBreathPin);
-//    fsrBreathTemp = map(fsrBreathRead, 1023, 300, 0, 127);
-//    fsrBreathCalc = fsrBreathCalc + fsrBreathTemp;
-//  }
-//  fsrBreathPressure = fsrBreathCalc / 5; 
-//  fsrBreathCalc = 0;
-//  if(fsrBreathPressure != fsrBreathSaved){
-//    velocity = fsrBreathPressure;
-//    fsrBreathSaved = fsrBreathPressure;
-//  }
-//}
-
-
-//###################################################################
-// BMP180 pressure sensor function with velocity output:
-/////////////////////////////////////////////////////////
-//void updatePressure(){
-//  newVelocity = 0;
-//  //  char status;
-//  //  double T,P,p0,a;
-//
-//  //  if(pressureStatus = 0){
-//  //    
-//
-//  if(pressureStatus == 1){
-//    status = pressure.startTemperature();
-//    if(status != 0){
-//      waitTime = status + timer1;
-//      pressureStatus = 2;
-//    }
-//  }
-//
-//  if(pressureStatus == 2){
-//    if(timer1 > waitTime){
-//      status = pressure.getTemperature(T);
-//      if(status != 0){
-//        currentTemp = (int) T;
-//        pressureStatus = 3;
-//      }
-//    }
-//  }
-//
-//  if(pressureStatus == 3){
-//    status = pressure.startPressure(3);
-//    if (status != 0){
-//      waitTime = status + timer1;
-//      pressureStatus = 4;
-//    }
-//  }
-//
-//  if(pressureStatus == 4){
-//    if(timer1 > waitTime){
-//      status = pressure.getPressure(P,T);
-//      if(status != 0){
-//        tempCount++;
-//        currentPressure = (int) P;
-//        if(refPressure > currentPressure || refPressure < currentPressure - 150){
-//          refPressure = currentPressure;
-//        }
-//        velocity = map(currentPressure, refPressure + pressBuffer, 50 + refPressure, 0, 127);
-//        newVelocity = 1;    
-//        if(velocity > 127 && velocity < 245){
-//          velocity = 127;
-//        }
-//        else if(velocity >= 245){
-//          velocity = 0;
-//        }
-//
-//        if(tempCount < tempCountConstant || refDone == 1){
-//          pressureStatus = 3;
-//        }
-//        else{
-//          pressureStatus = 1;
-//          tempCount = 0;
-//        }
-//      }
-//    } 
-//  }
-//}
-
-
-//#################################################################
-//#################################################################
-//ROTARY ENCODER UPDATE FUNCTION:
-//Called from interrupts on pins 0 and 1. 
-//encoderOutput is a continuously changing value, counted from 0 at start position. 
-
-void rotEncUpdate(){
-  int MSB = digitalRead(rotEncPin1); //MSB = most significant bit
-  int LSB = digitalRead(rotEncPin2); //LSB = least significant bit
-
-  int encoded = (MSB << 1) | LSB; //converting the 2 pin value to single number
-  int sum  = (lastEncoded << 2) | encoded; //adding it to the previous encoded value
-
-  if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) encoderValue ++;
-  if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) encoderValue --;
-
-
-  lastEncoded = encoded; 
-  encoderOutput = encoderValue / 4;
-}
-
-
-//#################################################################
-//#################################################################
-// DEBOUNCE:
-// Debounce function for buttons
-boolean debounce(byte pin, boolean last, byte debounceTime){
-  boolean current = digitalRead(pin);
-  if(last != current){
-    delay(debounceTime);
-    current = digitalRead(pin);
-  }
-  return current;
-}
-
-
-//###################################################################
-//###################################################################
-// SORT FUNCTION FOR THE MEDIAN FILTER ON BREATH DATA:
-
-void isort(int *a, int n){
-// *a is an array pointer function - n is the array size
-
-  for (int i = 1; i < n; ++i)
-  {
-    int j = a[i];
-    int k;
-    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
-    {
-      a[k + 1] = a[k];
-    }
-    a[k + 1] = j;
-  }
-
 }
