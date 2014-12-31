@@ -1,3 +1,4 @@
+
 //#####################################################
 //#####################################################
 
@@ -27,7 +28,6 @@
 //#####################################################
 
 #include <SoftwareSerial.h>
-#include <SFE_BMP180.h>
 #include <Wire.h>
 
 //##############################################################
@@ -177,20 +177,6 @@ int breathArray[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
 
-//////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
-// ROTARY ENCODER VARIABLES
-
-int rotEncPin1 = 0;
-int rotEncPin2 = 1;
-int rotEncButtonPin = A4;
-
-volatile long lastEncoded = 0;
-volatile long encoderValue = 0;
-volatile long encoderOutput = 0;
-volatile long lastEncoderOutput = 0;
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -222,6 +208,47 @@ byte Effect2Depth = 92;
 
 // Serial 1-pin LCD setup:
 // SoftwareSerial LCDSerial(-1, 16);
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// ROTARY ENCODER VARIABLES:
+
+int rotEncPin1 = 0;
+int rotEncPin2 = 1;
+int rotEncButtonPin = A4;
+
+volatile long lastEncoded = 0;
+volatile long encoderValue = 0;
+volatile long encoderOutput = 0;
+volatile long lastEncoderOutput = 0;
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// LCD MENU VARIABLES:
+
+//mainMenuItems[] = {"1: PICK INSTRUMENT", "2: ADJUST BREATH", "3: CALIBRATE BEND", "4: PLAYING MODES", 
+//
+//breathMenuItems[] = {"A: ADJUST SENSITIVITY", "B: ADJUST BUFFER", "C: SET NEW REFERENCE", 
+//
+//modeMenuItems[] = {"A: NORMAL", "B: SUSTAIN", "C: CHORDS", "D: INTERVALS", 
+//
+
+
+// "OHMS MAIN MENU:"
+// 1. 
+
+// (scroll:)
+// 2.
+// 3.
+
+// "OHMS MODES:"
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -344,6 +371,9 @@ void loop(){
       sendMidi(noteON, currentNote, velocity);
       sendMidi(noteON, lastNote, 0);
     }
+    else if(velocity != lastVelocity){
+      sendMidi(continuousController, 2, velocity);
+    }   
 
     if(velocity != 0 && lastVelocity == 0){
       sendMidi(noteON, currentNote, velocity);
@@ -354,10 +384,6 @@ void loop(){
       sendMidi(noteON, lastNote, 0);
     }
 
-    if(velocity != lastVelocity){
-      sendMidi(continuousController, 7, velocity);
-    }   
-
     if(bendVal != lastBend){
       sendMidi(pitchBend, 0, bendVal);
     }
@@ -366,6 +392,7 @@ void loop(){
 //      lastBite = biteVal;
 //    }
 
+    fsrBreathSaved = fsrBreathPressure;
     lastVelocity = velocity;
     lastNote = currentNote;
     lastBend = bendVal;
@@ -424,10 +451,10 @@ void updatePressure(){
   isort(breathArray,arraySize);
   fsrBreathRead = breathArray[arraySize / 2];
   if(fsrBreathRead > 780){   
-    fsrBreathPressure = map(fsrBreathRead, 1023, 781, 0, 60);
+    fsrBreathPressure = map(fsrBreathRead, 1023, 781, 0, 50);
   }
   else if(fsrBreathRead <= 780){   
-    fsrBreathPressure = map(fsrBreathRead, 780, 500, 61, 127);
+    fsrBreathPressure = map(fsrBreathRead, 780, 500, 51, 127);
   }
   if(fsrBreathPressure > 127){
     fsrBreathPressure = 127;
@@ -1239,19 +1266,32 @@ void pickNote(){
 // Octave Update Function:
 
 void setOctave(){
-  if(keysPressed[0] == 1){
+  if(keysPressed[0] == 0 && keysPressed[1] == 0 && keysPressed[2] == 0){
+    octave = 46;
+  }
+  
+  else if(keysPressed[0] == 1 && keysPressed[1] == 0 && keysPressed[2] == 0){
     octave = 34;
   }
 
-  if(keysPressed[1] == 1){
-    octave = 10;
-  }
-
-  if(keysPressed[0] == 0 && keysPressed[1] == 0){
+  else if(keysPressed[0] == 1 && keysPressed[1] == 1 && keysPressed[2] == 0){
     octave = 22;
   }
 
-  if(keysPressed[0] == 1 && keysPressed[1] == 1){
+  else if(keysPressed[0] == 0 && keysPressed[1] == 1 && keysPressed[2] == 0){
+    octave = 10;
+  }
+
+  else if(keysPressed[0] == 0 && keysPressed[1] == 1 && keysPressed[2] == 1){
     octave = -2;
   }
+  
+  else if(keysPressed[0] == 0 && keysPressed[1] == 0 && keysPressed[2] == 1){
+    octave = -14;
+  }
+  
+  else if(keysPressed[0] == 1 && keysPressed[1] == 1 && keysPressed[2] == 1){
+    octave = -26;
+  }
 }
+
