@@ -1,0 +1,120 @@
+
+
+//#####################################################
+//#####################################################
+
+// Open Horn Midi system / "OHMs"
+// ATTiny 45/85 1-wire LCD system v0.5 (Note to self: Think of more catchy name...)
+// Copyright 2014, Jeppe Tofthøj Rasmussen
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+//#####################################################
+//#####################################################
+
+#include <LiquidCrystal595.h>    // include the library
+#include <SoftwareSerial.h>
+
+
+LiquidCrystal595 lcd(0,1,2);     // datapin, latchpin, clockpin
+SoftwareSerial SerialIn(4, -1);
+
+
+void setup() {
+  OSCCAL = 0x49;
+  SerialIn.begin(9600);
+  lcd.init(0,1,2);
+  lcd.setLED1Pin(HIGH);
+  lcd.begin(16,2);               // initialize the lcd
+  lcd.home();                   // go home
+}
+
+
+  
+void loop() {
+  if(SerialIn.available() > 0){
+    char inChar = SerialIn.read();
+    if(inChar == '#'){
+      lcd.setCursor(0, 0);
+      lcd.print("                "); // 16 spaces
+      lcd.setCursor(0, 0);
+      for(int i = 0; i < 16; i++){
+        char inChar = SerialIn.read();
+        if(inChar == '\n'){
+          break;
+        }
+        lcd.print(inChar);
+      }
+    }      
+
+    else if(inChar == '$'){
+      lcd.setCursor(0, 1);
+      lcd.print("                "); // 16 spaces
+      lcd.setCursor(0, 1);
+      for(int i = 0; i < 16; i++){
+        char inChar = SerialIn.read();
+        if(inChar == '\n'){
+          break;
+        }
+        lcd.print(inChar);
+      }
+    }
+
+    else if(inChar == '%'){
+      lcd.setCursor(0, 1);
+      lcd.print("                "); // 4 spaces
+      lcd.setCursor(12, 1);
+      for(int i = 0; i < 4; i++){
+        char inChar = SerialIn.read();
+        if(inChar == '\n'){
+          break;
+        }
+        lcd.print(inChar);
+      }
+    }
+
+    else if(inChar == '*'){
+      lcd.setCursor(0, 1);
+      lcd.print("    "); // 4 spaces
+      lcd.setCursor(0, 1);
+      for(int i = 0; i < 4; i++){
+        char inChar = SerialIn.read();
+        if(inChar == '\n'){
+          break;
+        }
+        lcd.print(inChar);
+      }
+    }
+   
+    else if(inChar == '['){                        // lcdOn
+      lcd.setLED1Pin(HIGH);
+      lcd.display();
+      return;
+    }
+
+    else if(inChar == ']'){                         // lcdOn
+      lcd.setLED1Pin(LOW);
+      lcd.noDisplay();
+      return;
+    }
+    else if(inChar == '\n'){
+      return;
+    }
+  }
+}
