@@ -1,21 +1,17 @@
 
 //#####################################################
 //#####################################################
-
 // Open Horn Midi system / "OHMs"
 // Arduino Micro - Main Code v0.51
 // Copyright 2014, Jeppe Tofthøj Rasmussen
-
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,7 +19,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
 //#####################################################
 //#####################################################
 #include <EEPROMex.h>
@@ -31,99 +26,75 @@
 //#include <Wire.h>
 
 
-
-//##############################################################
-//##############################################################
-// Velocity based output / after-touch based output
-
-
-
-
 //#########################################################
-//#########################################################
-//#########################################################
-//#############  KEY AND NOTE VARIABLES:  #################
-
-
+//############# KEY AND NOTE VARIABLES: #################
 //Array of all pins with resistive touch switches,
-//  - In descending fingering order:          
+// - In descending fingering order:
 byte keyPins[] = {
-  A1, A2, A3,   4,  5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-//(octaves)     HD  B  A  G  Ab Bb LC  F   E   D   Eb  LC/LBb
-
-//        Pin = 14; // MISO pin
-//        Pin = 15; // SCK pin
+  A1, A2, A3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+//(octaves) HD B A G Ab Bb LC F E D Eb LC/LBb
+// Pin = 14; // MISO pin
+// Pin = 15; // SCK pin
 #define NUMKEYS sizeof(keyPins)
-
 #define NUMNOTEKEYS 12
 
-//Fingering-arrays. Here I store all the different key combinations, in relation to the pins the keys are on.
-// These arrays correspond to the "keyPins[]" array from [3] to [11], so pins from 4 - 12 carry these "note-defining" keys.
-// The last three keys/pins are for octave and "special functions" and they are treated separately.
-
+//###################################################################
+//###########  Fingering-arrays (Key combinations)  ################
 byte highEFlat[NUMNOTEKEYS] = {
-  1,  0, 0, 0,  0, 1, 0,  0, 0, 0,  0, 0};
+  1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
 byte highDNat[NUMNOTEKEYS] = {
-  1,  0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0};
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte cSharp[NUMNOTEKEYS] = {
-  0,  0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0};
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte cNat[NUMNOTEKEYS] = {
-  0,  0, 1, 0,  0, 0, 0,  0, 0, 0,  0, 0};
+  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte bNat[NUMNOTEKEYS] = {
-  0,  1, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0};
+  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte bFlat[NUMNOTEKEYS] = {
-  0,  1, 1, 0,  0, 1, 0,  0, 0, 0,  0, 0};
+  0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0};
 byte aNat[NUMNOTEKEYS] = {
-  0,  1, 1, 0,  0, 0, 0,  0, 0, 0,  0, 0};
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte aFlat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  1, 0, 0,  0, 0, 0,  0, 0};
+  0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 byte gNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  0, 0, 0,  0, 0};
+  0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
 byte fSharp[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  0, 1, 0,  0, 0};
+  0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0};
 byte fNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  1, 0, 0,  0, 0};
+  0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0};
 byte eNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  1, 1, 0,  0, 0};
+  0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0};
 byte eFlat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  1, 1, 1,  1, 0};
+  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0};
 byte dNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  1, 1, 1,  0, 0};
-
+  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0};
 byte lowCSharp[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  1, 0, 0,  1, 1, 1,  0, 1};
+  0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1};
 byte lowCNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 0,  1, 1, 1,  0, 1};
+  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1};
 byte lowBNat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 1,  1, 1, 1,  0, 0};
+  0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0};
 byte lowBFlat[NUMNOTEKEYS] = {
-  0,  1, 1, 1,  0, 0, 1,  1, 1, 1,  0, 1};
-
-
-
+  0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1};
 
 //Main array which stores the current state of each key pin:
 byte keysPressed[NUMKEYS];
-
 // Another array which stores the previous state for comparison:
 byte lastPressed[NUMKEYS];
-
 // A shorter version of the original key-array, with the octave key pins removed
 byte noteKeysPressed[NUMNOTEKEYS];
-boolean newKeys;
+// boolean newKeys;
 
-byte baseNote; // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63)
-byte currentNote; // This is the complete, calculated note, including octave.
-byte lastNote; // This is the last played note, for comparison with new readings.
-int octave = 0; // A value between -48 and 60 (in increments of 12). Set by setOctave()
+
+byte baseNote;       // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63)
+byte currentNote;    // This is the complete, calculated note, including octave.
+byte lastNote;       // This is the last played note, for comparison with new readings.
+int octave = 0;      // A value between -48 and 60 (in increments of 12). Set by setOctave()
 int lastOctave = 0;
 
-
-
-
-////////////////////////////////////////////
-// BEND VARIABLES:
-byte bendPin = A5; // Pin with the bend sensor on it
+//##########################################
+//###########  BEND VARIABLES: ############ 
+byte bendPin = A5;  // Pin with the bend sensor on it
 
 //pitchbend data storage:
 byte lsb = 0;//least siginificant byte of pitchbend message (for 127 step resolution, this stays at 0)
@@ -131,25 +102,20 @@ byte bendTemp;
 byte bendVal = 64;// (msb) most significant byte of pitchbend message (Bend values from 0 - 127. 64 means no pitchbend)
 byte lastBend = 64;
 int potm;
-
 // byte bendCenter;
 int bendLowBuf = 8;
 int bendHighBuf = 8;
 
 
-
 //#####################################################################
-//#####################################################################
-// FSR VARIABLES (Bite and Breath sensors):
-
+//##########  FSR VARIABLES (Bite and Breath sensors): ################
 byte bitePin = A0; // Pin with the bite sensor on it
 int biteRead = 0;
 byte biteVal = 0;
 byte lastBite = 0;
 byte harmonic = 0;
 
-// harmonic limit constants for bite sensor:
-
+// #####harmonic limit constants for bite sensor:
 //const byte firstHarmonic = 800;
 //const byte secondHarmonic = 500;
 //const byte thirdHarmonic = 350;
@@ -157,9 +123,6 @@ byte harmonic = 0;
 //const byte fifthHarmonic = 225;
 //const byte sixthHarmonic = 190;
 //const byte seventhHarmonic = 175;
-
-
-
 byte fsrBreathPin = A4; // Pin with the breath sensor on it
 int fsrBreathRead;
 int fsrBreathMidLow = 240;
@@ -168,28 +131,19 @@ int fsrBreathTemp;
 int fsrBreathCalc;
 byte fsrBreathPressure;
 byte fsrBreathSaved;
-
-byte velocity;     // This holds the mapped value of the currentPressure reading. Always a byte from 0-127.
+byte velocity; // This holds the mapped value of the currentPressure reading. Always a byte from 0-127.
 byte lastVelocity; // This holds the last velocity value for comparison
-
 int newVelocity = 0;
-
 ///////////////////////////////////
 //Median filter / Sort variables:
 int arraySize = 10;
-int breathArray[] = { 
+int breathArray[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-// MIDI VARIABLES:
-
-
-////////MIDI Commands:
+//#####################################################################
+//########################   MIDI VARIABLES:  #########################
+//MIDI Commands:
 byte noteON = 144;//144 = 10010000 in binary, this is the standard note on command
 byte pitchBend = 224;//224 = 11100000 in binary, this is the standard pitchbend command
 byte continuousController = 176;
@@ -197,36 +151,25 @@ byte sostenuto = 66;
 byte footController = 4;
 byte bankSelect = 0;
 byte modulationControl = 1;
-
-
 boolean sendMessage = 0; // If either of velocity, note or pitchBend have changed since last reading, this variable
 // is set to 1, and a new midi message will be sent this time around the loop.
-
 //Pin = 14; // MISO pin
 //Pin = 15; // SCK pin
 //Pin = 16; // MOSI pin
-
 ////Create a SoftwareSerial instance for sending MIDI commands out.
 SoftwareSerial midiSerial(-1, 16);
-
 byte Effect5Depth = 95;
 byte Effect2Depth = 92;
-
 // Serial 1-pin LCD setup:
 // SoftwareSerial LCDSerial(-1, 16);
 
-
-
-
-//#########################################
-// ROTARY ENCODER PINS AND VARIABLES:
+//#################################################################
+//############  ROTARY ENCODER PINS AND VARIABLES:  ##############
 int rotEncPin1 = 1;
 int rotEncPin2 = 0;
 int rotEncButtonPin = 3;
-
-
 boolean newValueBool = 0;
-int rotEncDir;  // Value of 1 or -1
+int rotEncDir; // Value of 1 or -1
 int rotEncLastRead1 = 0;
 int rotEncLastRead2 = 0;
 boolean currentEncButton;
@@ -236,330 +179,286 @@ boolean buttonReleased = 0;
 
 
 //#########################################################
-//#########################################################
-//#########################################################
-//###############  MENU VARIABLES:  #######################
-
-
+//############### MENU VARIABLES: #######################
 SoftwareSerial lcdSerial(-1, 2);
-
 boolean firstTime = 1;
 boolean menuOn = 0;
-
 int activeMenu = 0;
 int menuItem = 1;
 int lastActiveMenu = 0;
 int lastMenuItem = 1;
-
 boolean calibrateBreathOn = 0;
 boolean calibrateBendOn = 0;
 
-
-//#############################################
 //HARD-CODED FACTORY SETTINGS:
 const int breathRangeValueFact = 127; // Full range
 const int breathBufferValueFact = 10;
 const int breathMinValueFact = 0;
 const int breathMaxValueFact = 650;
-
 const int bendRangeValueFact = 127; // Full range
 const int bendBufferValueFact = 10;
 const int bendMinValueFact = 447; // Found by testing
 const int bendMidValueFact = 540; // Found by testing
 const int bendMaxValueFact = 642; // Found by testing
-
 const int pickInstrValueFact = 0;
 const int transposeValueFact = 0;
 const char modeValueFact = 'N';
 
-
-//#########################################
-//#########################################
-//                    USER-EDITABLE Settings:
-int breathRangeValue;  
+// USER-EDITABLE Settings:
+int breathRangeValue;
 int breathBufferValue;
 int breathMinValue;
-int breathMaxValue; 
-int bendRangeValue; 
+int breathMaxValue;
+int bendRangeValue;
 int bendBufferValue;
 int bendMinValue;
 int bendMidValue;
 int bendMaxValue;
-int pickInstrValue; 
-int transposeValue; 
-
+int pickInstrValue;
+int transposeValue;
 char modeValue; // Modes: 'N' = Normal, 'S' = Sustain, 'I' = Intervals, 'C' = Chords
 
-//#############################################
-//                    USER-EDITABLE Settings END:
-//#############################################
-
-
-//#########################################
-// MENU ITEMS:
+// MENU ITEM STRINGS:
 const char mainMenu[6][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "MAIN MENU:      "    }
+  {
+    "MAIN MENU: "   }
   , // Menu 0
-  { 
-    "Breath menu   ->"    }
-  , // On button: go to menu 1 
-  { 
-    "Bend menu     ->"    }
+  {
+    "Breath menu ->"   }
+  , // On button: go to menu 1
+  {
+    "Bend menu ->"   }
   , // On button: go to menu 2
-  { 
-    "Playing mode  ->"    }
+  {
+    "Playing mode ->"   }
   , // On button: go to menu 3
-  { 
-    "Instrument    ->"    }
+  {
+    "Instrument ->"   }
   , // On button: go to menu 4
-  { 
-    "Exit          ->"    }  // On button: turn off lcd, menuOn = 0, go back to main loop
+  {
+    "Exit ->"   } // On button: turn off lcd, menuOn = 0, go back to main loop
 };
 #define mainMenuSize 6
-
 const char breathMenu[5][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "BREATH MENU:    "    }
+  {
+    "BREATH MENU: "   }
   , // Menu 1
-  { 
-    "Breath range  ->"    }
+  {
+    "Breath range ->"   }
   , // On button: go to menu 11
-  { 
-    "Breath buffer ->"    }
+  {
+    "Breath buffer ->"   }
   , // On button: go to menu 12
-  { 
-    "Breath calibr ->"    }
+  {
+    "Breath calibr ->"   }
   , // On button: go to menu 13
-  { 
-    "Exit          ->"    }  // On button: go to menu 0
+  {
+    "Exit ->"   } // On button: go to menu 0
 };
 #define breathMenuSize 5
-
 const char bendMenu[5][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "BEND MENU:      "    }
-  , // Menu 2 
-  { 
-    "Bend range    ->"    }
-  , // On button: go to menu 21 
-  { 
-    "Bend buffer   ->"    }
-  , // On button: go to menu 22 
-  { 
-    "Bend calibr   ->"    }
-  , // On button: go to menu 23 
-  { 
-    "Exit          ->"    }  // On button: go to menu 0
+  {
+    "BEND MENU: "   }
+  , // Menu 2
+  {
+    "Bend range ->"   }
+  , // On button: go to menu 21
+  {
+    "Bend buffer ->"   }
+  , // On button: go to menu 22
+  {
+    "Bend calibr ->"   }
+  , // On button: go to menu 23
+  {
+    "Exit ->"   } // On button: go to menu 0
 };
 #define bendMenuSize 5
-
 const char modeMenu[6][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "MODE MENU:      "    }
+  {
+    "MODE MENU: "   }
   , // Menu 3
-  { 
-    "Normal        ->"    }
-  , // On button: go to menu 31 
-  { 
-    "Sustain       ->"    }
+  {
+    "Normal ->"   }
+  , // On button: go to menu 31
+  {
+    "Sustain ->"   }
   , // On button: go to menu 32
-  { 
-    "Intervals     ->"    }
+  {
+    "Intervals ->"   }
   , // On button: go to menu 33
-  { 
-    "Chords        ->"    }
+  {
+    "Chords ->"   }
   , // On button: go to menu 34
-  { 
-    "Exit          ->"    }  // On button: go to menu 0
+  {
+    "Exit ->"   } // On button: go to menu 0
 };
 #define modeMenuSize 6
-
 const char instrumentMenu[7][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "INSTR MENU:     "    }
+  {
+    "INSTR MENU: "   }
   , // Menu 4
-  { 
-    "Pick instr    ->"    }
+  {
+    "Pick instr ->"   }
   , // On button: go to menu 41
-  { 
-    "Transpose     ->"    }
+  {
+    "Transpose ->"   }
   , // On button: go to menu 42
-  { 
-    "Save settings ->"    }
+  {
+    "Save settings ->"   }
   , // On button: go to menu 43 (Save current settings to EEPROM.)
-  { 
-    "Load Saved    ->"    }
+  {
+    "Load Saved ->"   }
   , // On button: go to menu 44 (Set current settings to saved settings.)
-  { 
-    "Load Defaults ->"    }
+  {
+    "Load Defaults ->"   }
   , // On button: go to menu 45 (Set current settings to factory settings.)
-  { 
-    "Exit          ->"    }  // On button: go to menu 0
+  {
+    "Exit ->"   } // On button: go to menu 0
 };
 #define instrumentMenuSize 7
-
-
-const char breathRangeTitle[] =  
-"BREATH RANGE:    ";     // Menu 11
-
-const char breathBufferTitle[] = 
-"BREATH BUFFER:   ";     // Menu 12
-
+const char breathRangeTitle[] =
+"BREATH RANGE: "; // Menu 11
+const char breathBufferTitle[] =
+"BREATH BUFFER: "; // Menu 12
 const char breathCalMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "CALIBR. BREATH  "      }
+  {
+    "CALIBR. BREATH "   }
   , // Menu 13
-  { 
-    "Calibrate start?"      }
-  ,// Wait for button, menuItem = 3; 
-  { 
-    "Exit            "      }
+  {
+    "Calibrate start?"   }
+  ,// Wait for button, menuItem = 3;
+  {
+    "Exit "   }
   ,
-  { 
-    "End calibration?"      } // Read data from breath sensor, Wait for button, go to menu 0 menuItem 1
+  {
+    "End calibration?"   } // Read data from breath sensor, Wait for button, go to menu 0 menuItem 1
 };
 #define breathCalMenuSize 4
-
-
-const char bendRangeTitle[] =  
-"BEND RANGE:     ";     // Menu 21
-
-const char bendBufferTitle[] = 
-"BEND BUFFER:    ";     // Menu 22
-
+const char bendRangeTitle[] =
+"BEND RANGE: "; // Menu 21
+const char bendBufferTitle[] =
+"BEND BUFFER: "; // Menu 22
 const char bendCalMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "CALIBR. BEND    "      }
-  ,// Menu 23 
-  { 
-    "Calibrate start?"      }
+  {
+    "CALIBR. BEND "   }
+  ,// Menu 23
+  {
+    "Calibrate start?"   }
   ,// Wait for button, menuItem = 3;
-  { 
-    "Exit.           "      }
+  {
+    "Exit. "   }
   , // Read data from bend sensor, Wait for button, go to menu 0 menuItem 2
-  { 
-    "End calibration?"      }
+  {
+    "End calibration?"   }
 };
 #define bendCalMenuSize 4
-
 const char normalModeMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "NORMAL MODE?    "     }
+  {
+    "NORMAL MODE? "   }
   , // Menu 31
-  { 
-    "No, exit!       "     }
+  {
+    "No, exit! "   }
   , // On button: go to menu 3 menuItem 1
-  { 
-    "Yes, Normal mode"     }
-  ,  // On buttonpressed == 1: print("Confirmed - Normal mode" 
-  { 
-    "Confirmed.      "     }  // Wait for buttonReleased, set "normal" mode, go to menu 0, menuItem3, 
+  {
+    "Yes, Normal mode"   }
+  , // On buttonpressed == 1: print("Confirmed - Normal mode"
+  {
+    "Confirmed. "   } // Wait for buttonReleased, set "normal" mode, go to menu 0, menuItem3,
 };
 #define normalModeMenuSize 4
-
 const char sustainModeMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "SUSTAIN MODE?   "     }
+  {
+    "SUSTAIN MODE? "   }
   , // Menu 32
-  { 
-    "No, exit!       "     }
+  {
+    "No, exit! "   }
   , // On button: go to menu 3 menuItem 2
-  { 
-    "Yes, Sustain.   "     }
-  , // On buttonpressed == 1: print("Confirmed - Sustain mode" 
-  { 
-    "Confirmed.      "     }  // Wait for buttonReleased, set "sustain" mode, go to menu 0, menuItem3,
+  {
+    "Yes, Sustain. "   }
+  , // On buttonpressed == 1: print("Confirmed - Sustain mode"
+  {
+    "Confirmed. "   } // Wait for buttonReleased, set "sustain" mode, go to menu 0, menuItem3,
 };
 #define sustainModeMenuSize 4
-
 const char intervalModeMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "INTERVAL MODE?  "     }
+  {
+    "INTERVAL MODE? "   }
   , // Menu 33
-  { 
-    "No, exit!       "     }
+  {
+    "No, exit! "   }
   , // On button: go to menu 3 menuItem 3
-  { 
-    "Yes, Intervals. "     }
-  , // On buttonpressed == 1: print("Confirmed - Interval mode" 
-  { 
-    "Confirmed.      "     }  // Wait for buttonReleased, set "interval" mode, go to menu 0, menuItem3,
+  {
+    "Yes, Intervals. "   }
+  , // On buttonpressed == 1: print("Confirmed - Interval mode"
+  {
+    "Confirmed. "   } // Wait for buttonReleased, set "interval" mode, go to menu 0, menuItem3,
 };
 #define intervalModeMenuSize 4
-
 const char chordModeMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "CHORD MODE?     "     }
+  {
+    "CHORD MODE? "   }
   , // Menu 34
-  { 
-    "No, exit!       "     }
+  {
+    "No, exit! "   }
   , // On button: go to menu 3 menuItem 4
-  { 
-    "Yes, Chord mode."     }
-  , // On buttonpressed == 1: print("Confirmed - Chord mode" 
-  { 
-    "Confirmed.      "     }  // Wait for buttonReleased, set "chords" mode, go to menu 0, menuItem3,
+  {
+    "Yes, Chord mode."   }
+  , // On buttonpressed == 1: print("Confirmed - Chord mode"
+  {
+    "Confirmed. "   } // Wait for buttonReleased, set "chords" mode, go to menu 0, menuItem3,
 };
 #define chordModeMenuSize 4
-
-const char pickInstrTitle[] = 
-"PICK INSTRUMENT:";      // Menu 41
-
-const char transposeTitle[] = 
-"TRANSPOSE:      ";     // Menu 42
-
-
+const char pickInstrTitle[] =
+"PICK INSTRUMENT:"; // Menu 41
+const char transposeTitle[] =
+"TRANSPOSE: "; // Menu 42
 const char saveSetMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "SAVE SETTINGS:  "       }
+  {
+    "SAVE SETTINGS: "   }
   , // Menu 43
-  { 
-    "Exit.           "       }
+  {
+    "Exit. "   }
   , // On button: go to menu 4, menuItem 3
-  { 
-    "Save all.       "       }
+  {
+    "Save all. "   }
   ,
-  { 
-    "Confirmed.      "       }
+  {
+    "Confirmed. "   }
 };
 #define saveSetMenuSize 4
-
 const char loadSavedSetMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "LOAD SETTINGS   "       }
+  {
+    "LOAD SETTINGS "   }
   , // Menu 44
-  { 
-    "Exit.           "       }
+  {
+    "Exit. "   }
   , // On button: go to menu 4, menuItem 4
-  { 
-    "Load all.       "       }
+  {
+    "Load all. "   }
   ,
-  { 
-    "Confirmed.      "       }
+  {
+    "Confirmed. "   }
 };
 #define loadSavedSetMenuSize 4
-
 const char loadFactSetMenu[4][17] = { // [NUMBER OF ELEMENTS] [MAX_SIZE]
-  { 
-    "RESTORE DEFAULT:"       }
+  {
+    "RESTORE DEFAULT:"   }
   , // Menu 45
-  { 
-    "Exit.           "       }
+  {
+    "Exit. "   }
   , // On button: go to menu 4, menuItem 5
-  { 
-    "Restore all.    "       }
+  {
+    "Restore all. "   }
   ,
-  { 
-    "Confirmed.      "       }
+  {
+    "Confirmed. "   }
 };
 #define loadFactSetMenuSize 4
 
 
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-// SETUP:
 
+//#####################################################################
+//#########################    SETUP:    ############################## 
 void setup(){
   delay(1000);
   byte i;
@@ -567,56 +466,39 @@ void setup(){
     pinMode(keyPins[i], INPUT);
     digitalWrite(keyPins[i], HIGH);
   }
-
   // ROTARY ENCODER SETUP:
   pinMode(rotEncPin1, INPUT);
   pinMode(rotEncPin2, INPUT);
   pinMode(rotEncButtonPin, INPUT);
-
   digitalWrite(rotEncPin1, HIGH); //turn pullup resistor on
   digitalWrite(rotEncPin2, HIGH); //turn pullup resistor on
   digitalWrite(rotEncButtonPin, HIGH); //turn pullup resistor on
 
-  //###########################
-//  Serial.begin(9600);
+  // Serial.begin(9600); // Debug Serial
   midiSerial.begin(31250);
   lcdSerial.begin(9600);
-  //################################
+  
   // Welcome screen + "loading settings" screen
   lcdOn();
-  lcdTextLine0("   Open Horn    ");
-  lcdTextLine1("  MIDI system   "); 
-
+  lcdTextLine0(" Open Horn ");
+  lcdTextLine1(" MIDI system ");
   //###################################################
   // RETRIEVE SETTINGS FROM HARDWIRED DEFAULTS:
   restoreFactorySettings();
   delay(2000);
-
-
   //#########################
   // UPDATE SETTINGS FROM EEPROM:
-  lcdTextLine0("    Loading     ");
-  lcdTextLine1(" user settings. "); 
-
+  lcdTextLine0(" Loading ");
+  lcdTextLine1(" user settings. ");
   loadAllSettings();
   delay(2000);
-
   lcdOff();
-//  potm = analogRead(bendPin);
-//  bendCenter = map(potm, 451, 670, 0, 127);
-//  bendLowBuf = bendCenter - 5;
-//  bendHighBuf = bendCenter + 5;
 }
 
 
-
-
-
 //#################################################################
 //#################################################################
-//############ MAIN LOOP:
-
-
+//########################    MAIN LOOP:    #######################
 void loop(){
   encButtonRead();
   if(menuOn == 0 && buttonPressed == 1){
@@ -629,217 +511,147 @@ void loop(){
     firstTime = 1;
     updateMenu();
   }
-
-
   int n;
   byte i;
-  //  timer1 = millis();              // Update timer1, to keep track of the pressure sensor wait time
+  // timer1 = millis(); // Update timer1, to keep track of the pressure sensor wait time
   //
-
-
-  updatePressure();               // Updates pressure and velocity values
+  updatePressure(); // Updates pressure and velocity values
   if(velocity != lastVelocity){
     sendMessage = 1;
-  }    
-
-
-
-  readKeys(); // This populates the "keysPressed[]" array with fresh readings from the 12 touch pins
-
-    /////////////////////////////////////////////////
-  //// Debug for "readKeys()" only:
-  //  for (i = 0; i < NUMKEYS; i++){
-  //    Serial.print(keysPressed[i]);
-  //  }
-  //  Serial.println();
-  // // End debug /////////////////////////////////
-
-
-
-  pickNote();                    // picknote() function sets the "baseNote" as a
-  // midi note pitch, by comparing "keysPressed[]" to all accepted key combinations.
-
-
-
-  setOctave();                  // setOctave() function keeps track of the octave keys in the keysPressed[] array,
-  // and updates it as an int between -48 and 60 (in increments of 12), which is
-  // added to / subtracted from the note value
-
-
-
-    currentNote = baseNote + octave;  //Calculate final note value for midi, including octave
-
-
-
-    if(currentNote != lastNote){   // Check for new note.
-    sendMessage = 1;             // In case of new note, request new midi message
   }
+  readKeys(); 
+  
+  
+/////////////////////////////////////////////////
+//// Debug for "readKeys()" only:
+  // for (i = 0; i < NUMKEYS; i++){
+  // Serial.print(keysPressed[i]);
+  // }
+  // Serial.println();
+//// End debug /////////////////////////////////
+  
+  
+  pickNote();
+  setOctave(); 
+  currentNote = baseNote + octave; 
+  if(currentNote != lastNote){ 
+    sendMessage = 1; 
+  }
+  
 
-  ////////////////////////////////////////////
-  // Run the readBend function to update "bendValue":
-  readBend();  // Updates the bend value from the neck sensor and maps it to 0 - 127.
+  readBend(); // Updates the bend value from the neck sensor and maps it to 0 - 127.
   if(bendVal != lastBend){
     sendMessage = 1;
-
   }
-
-  //  readBite();
-  //  if(biteVal != lastBite){
-  //    sendMessage = 1;
-  //  }
-
-
-
-  //###############################################
-  //######## MIDI MESSAGE SECTION:
-
-
+  // readBite();
+  // if(biteVal != lastBite){
+  // sendMessage = 1;
+  // }
+  
+  
+//
+// MIDI MESSAGE SECTION:
   if(sendMessage == 1){
-
     if(currentNote != lastNote){
       sendMidi(noteON, currentNote, velocity);
       sendMidi(noteON, lastNote, 0);
     }
     else if(velocity != lastVelocity){
       sendMidi(continuousController, 2, velocity);
-    }   
-
+    }
     if(velocity != 0 && lastVelocity == 0){
       sendMidi(noteON, currentNote, velocity);
     }
-
     if(velocity == 0){
       sendMidi(noteON, currentNote, 0);
       sendMidi(noteON, lastNote, 0);
     }
-
     if(bendVal != lastBend){
       sendMidi(pitchBend, 0, bendVal);
     }
-    //    if(biteVal != lastBite){
-    //      sendMidi(modulationControl, 0, biteVal);
-    //      lastBite = biteVal;
-    //    }
-
+    // if(biteVal != lastBite){
+    // sendMidi(modulationControl, 0, biteVal);
+    // lastBite = biteVal;
+    // }
     fsrBreathSaved = fsrBreathPressure;
     lastVelocity = velocity;
     lastNote = currentNote;
     lastBend = bendVal;
+    
 
-
-
-    //#######################        
-    //######### MAIN DEBUG:
-
-    //    if(sendMessage == 1){
-    //      Serial.println();
-    //  //    Serial.print("Reference pressure:       ");
-    //  //    Serial.println(refPressure);
-    //  //    Serial.print("Current pressure:         ");
-    //  //    Serial.println(currentPressure);
-    //      Serial.print("Velocity:      ");
-    //      Serial.println(velocity);
-    //      Serial.print("Current Note:             ");
-    //      Serial.println(currentNote);
-    //      Serial.print("Note bend value:          ");
-    //      Serial.println(bendVal);
-    //      Serial.print("Rotary encoder position:  ");
-    //      Serial.println(encoderOutput);
-    //      delay(20);
-    //    }
-
-
+// MAIN DEBUG:
+    // if(sendMessage == 1){
+    // Serial.println();
+    // // Serial.print("Reference pressure: ");
+    // // Serial.println(refPressure);
+    // // Serial.print("Current pressure: ");
+    // // Serial.println(currentPressure);
+    // Serial.print("Velocity: ");
+    // Serial.println(velocity);
+    // Serial.print("Current Note: ");
+    // Serial.println(currentNote);
+    // Serial.print("Note bend value: ");
+    // Serial.println(bendVal);
+    // Serial.print("Rotary encoder position: ");
+    // Serial.println(encoderOutput);
+    // delay(20);
+    // }
     sendMessage = 0;
-
   }
 } // End of main loop
-////////////////////////////////////////
-///////////////////////////////////////
 
 
 
-
-
-//#################################################################
-//######################### Functions: ############################
-//#################################################################
 
 
 
 //#################################################################
 //#################################################################
+//######################### FUNCTIONS: ############################
+//#################################################################
+//#################################################################
+
 // READ BITE SENSOR FUNCTION:
-
 //void readBite(){
 //  biteRead = analogRead(bitePin);
 //  biteVal = map(biteRead, 250, 0, 0, 127);
 //
 //  if(biteVal <= firstHarmonic && biteVal > secondHarmonic){
-//    harmonic = 12;
+//  harmonic = 12;
 //  }
 //  else if(biteVal <= secondHarmonic && biteVal > thirdHarmonic){
-//    harmonic = 19;
+//  harmonic = 19;
 //  }
 //  else if(biteVal <= thirdHarmonic && biteVal > fourthHarmonic){
-//    harmonic = 24;
+//  harmonic = 24;
 //  }
 //  else if(biteVal <= fourthHarmonic && biteVal < fifthHarmonic){
-//    harmonic = 28;
+//  harmonic = 28;
 //  }
 //  else if(biteVal <= fifthHarmonic && biteVal < sixthHarmonic){
-//    harmonic = 31;
+//  harmonic = 31;
 //  }
 //  else if(biteVal <= sixthHarmonic && biteVal < seventhHarmonic){
-//    harmonic = 34;
+//  harmonic = 34;
 //  }
 //  else if(biteVal <= seventhHarmonic){
-//    harmonic = 36;
+//  harmonic = 36;
 //  }
 //}
-//      
-
-
 
 
 //###################################################################
 //############ FSR Breath pressure function - Sets velocity:
-//
-//void updatePressure(){
-//  int i;
-//  for(i = 0; i < arraySize; i++){    
-//    fsrBreathTemp = analogRead(fsrBreathPin);
-//    breathArray[i] = fsrBreathTemp;
-//  }
-//  isort(breathArray,arraySize);
-//  fsrBreathRead = breathArray[arraySize / 2];
-//  fsrBreathRead = map(fsrBreathRead, 1023, 0, 0, 1023);
-//  if(fsrBreathRead <= fsrBreathMidLow){   
-//    
-//    fsrBreathPressure = map(fsrBreathRead, 0, fsrBreathMidLow, 0, 50);
-//  }
-//  else if(fsrBreathRead > fsrBreathMidHigh){  
-//    fsrBreathPressure = map(fsrBreathRead, fsrBreathMidHigh, 1023, 51, 127);
-//  }
-//  if(fsrBreathPressure > 127){
-//    fsrBreathPressure = 127;
-//  }
-//  if(fsrBreathPressure != fsrBreathSaved){
-//    velocity = fsrBreathPressure;
-//    fsrBreathSaved = fsrBreathPressure;
-//  }
-//}
-
 void updatePressure(){
   int i;
-  for(i = 0; i < arraySize; i++){    
+  for(i = 0; i < arraySize; i++){
     fsrBreathTemp = analogRead(fsrBreathPin);
     breathArray[i] = fsrBreathTemp;
   }
-  isort(breathArray,arraySize); 
+  isort(breathArray,arraySize);
   fsrBreathRead = breathArray[arraySize / 2];
   fsrBreathRead = map(fsrBreathRead, 1023, 0, 0, 1023); // Reverse the input
   int breathLowBuf = breathMinValue + breathBufferValue; // combine minValue and bufferValue for final buffer...
-
   if(fsrBreathRead < breathLowBuf){
     fsrBreathPressure = 0;
   }
@@ -851,20 +663,18 @@ void updatePressure(){
       fsrBreathPressure = 127;
     }
   }
-
   if(fsrBreathPressure != fsrBreathSaved){
     velocity = fsrBreathPressure;
     fsrBreathSaved = fsrBreathPressure;
   }
 }
 
-
-void calibrateBreath(){  
+void calibrateBreath(){
   int i;
-  for(i = 0; i < arraySize; i++){    
+  for(i = 0; i < arraySize; i++){
     fsrBreathTemp = analogRead(fsrBreathPin);
     breathArray[i] = fsrBreathTemp;
-  }  
+  }
   isort(breathArray,arraySize);
   fsrBreathRead = breathArray[arraySize / 2];
   fsrBreathRead = map(fsrBreathRead, 1023, 0, 0, 1023);
@@ -877,33 +687,9 @@ void calibrateBreath(){
 }
 
 
-//###################################################################
-//###################################################################
-// SORT FUNCTION FOR THE MEDIAN FILTER ON BREATH DATA:
-
-void isort(int *a, int n){
-  // *a is an array pointer function - n is the array size
-
-  for (int i = 1; i < n; ++i)
-  {
-    int j = a[i];
-    int k;
-    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
-    {
-      a[k + 1] = a[k];
-    }
-    a[k + 1] = j;
-  }
-
-} 
-
-
-
-
 //#################################################################
 //#################################################################
 // READ BEND SENSOR FUNCTION:
-
 void readBend(){
   potm = analogRead(bendPin);
   bendLowBuf = bendMidValue - bendBufferValue;
@@ -920,18 +706,14 @@ void readBend(){
       bendVal = bendTemp;
     }
   }
-
   // bendVal is the output value.
   else if(potm > bendLowBuf && potm < bendHighBuf ){
     bendVal = 64;
   }
-
 }
-
 //#################################################################
 //#################################################################
 // CALIBRATE BEND SENSOR FUNCTION:
-
 void calibrateBend(){
   potm = analogRead(bendPin);
   if(potm > bendMaxValue){
@@ -942,24 +724,41 @@ void calibrateBend(){
   }
 }
 
+//#################################################################
+//#################################################################
+// READ THE TOUCH KEYS:
+void readKeys(){
+  byte i;
+  for (i = 0; i < NUMKEYS; i++){
+    lastPressed[i] = keysPressed[i];
+  }
+  for (i = 0; i < NUMKEYS; i++){ // Call debounce for touch keys
+    keysPressed[i] = debounce(keyPins[i], lastPressed[i], 8);
+  }
+  byte n = 0;
+  for(i = 3; i < NUMKEYS; i++){
+    noteKeysPressed[n] = keysPressed[i];
+    n++;
+  }
+  // if(keysPressed[2] == 1 && keysPressed[8] == 1 && keysPressed[3] == 0){
+  // refPressure = currentPressure;
+  // }
+}
+
 
 //#################################################################
 //#################################################################
 // MIDI-Message function:
-
-// sendMidi parameters  for noteOn are: Command, midiNote, midiVelocity
-//                      for pitchBend are: Command, lsbBend, msbBend
+// sendMidi parameters for noteOn are: Command, midiNote, midiVelocity
+// for pitchBend are: Command, lsbBend, msbBend
 void sendMidi(int command, int data1, int data2){
   midiSerial.write(command);//send command (noteOn / pitchBend etc)
   midiSerial.write(data1);//send data1 (pitch, lsbBend etc)
   midiSerial.write(data2);//send data2 (velocity, msbBend etc)
 }
 
-
-
 //#################################################################
-//#########   Read encoder:    ####################################
-
+//######### Read encoder: ####################################
 void rotEncRead(){
   int m;
   rotEncDir = 0;
@@ -979,7 +778,7 @@ void rotEncRead(){
 }
 
 //#################################################################
-//#########   Read encoder button:    ############################
+//######### Read encoder button: ############################
 void encButtonRead(){
   currentEncButton = debounce(rotEncButtonPin, lastEncButton, 2);
   if(currentEncButton == 1 && lastEncButton == 0){
@@ -989,7 +788,6 @@ void encButtonRead(){
   else if(currentEncButton == 0 && lastEncButton == 1){
     buttonReleased = 0;
     buttonPressed = 1;
-
   }
   else{
     buttonPressed = 0;
@@ -1002,71 +800,24 @@ void encButtonRead(){
 
 //#################################################################
 //#################################################################
-// READ THE TOUCH KEYS:
-
-void readKeys(){                      
-  byte i;
-
-
-  for (i = 0; i < NUMKEYS; i++){
-    lastPressed[i] = keysPressed[i];
-  }
-
-  for (i = 0; i < NUMKEYS; i++){         // Call debounce for touch keys
-    keysPressed[i] = debounce(keyPins[i], lastPressed[i], 8);
-  }
-
-  byte n = 0;
-  for(i = 3; i < NUMKEYS; i++){
-    noteKeysPressed[n] = keysPressed[i];
-    n++;
-  }
-  //  if(keysPressed[2] == 1 && keysPressed[8] == 1 && keysPressed[3] == 0){
-  //    refPressure = currentPressure;
-  //  }
-}
-
-
-
-//#################################################################
-//#################################################################
-// DEBOUNCE:
-// Debounce function for buttons and keys
-boolean debounce(byte pin, boolean last, byte debounceTime){
-  boolean current = digitalRead(pin);
-  if(last != current){
-    delay(debounceTime);
-    current = digitalRead(pin);
-  }
-  return current;
-}
-
-
-//#################################################################
-//#################################################################
 // PICK A NOTE:
 // Compare keysPressed[] from [3] to [12] to known key combinations,
 // and set "baseNote" as a note between 46 and 63
 void pickNote(){
   int i;
   boolean correct = 0;
-
   // Test for highEFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 1){
-
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 1){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 63;
@@ -1084,24 +835,18 @@ void pickNote(){
       }
     }
   }
-
-
-  // Test for highDNat:  
+  // Test for highDNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 1){
-
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 62;
@@ -1119,23 +864,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for cSharp:  
+  // Test for cSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 61;
@@ -1153,24 +893,18 @@ void pickNote(){
       }
     }
   }
-
-
-  // Test for cNat:  
+  // Test for cNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 60;
@@ -1188,23 +922,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for bNat:  
+  // Test for bNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 59;
@@ -1222,24 +951,18 @@ void pickNote(){
       }
     }
   }
-
-
-  // Test for bFlat:  
+  // Test for bFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 1){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 58;
@@ -1257,23 +980,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for aNat:    
+  // Test for aNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 57;
@@ -1291,23 +1009,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for aFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 1){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 56;
@@ -1325,23 +1038,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for gNat:  
+  // Test for gNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 55;
@@ -1359,23 +1067,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for fSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 54;
@@ -1393,23 +1096,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for fNat:  
+  // Test for fNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 53;
@@ -1427,23 +1125,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for eNat:  
+  // Test for eNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 0){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 52;
@@ -1461,23 +1154,18 @@ void pickNote(){
       }
     }
   }
-
-  // Test for eFlat:  
+  // Test for eFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 1){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 51;
@@ -1495,23 +1183,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for dNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 50;
@@ -1529,23 +1212,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for lowCSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 1){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 1){
                             baseNote = 49;
@@ -1563,23 +1241,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for lowCNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 1){
                             baseNote = 48;
@@ -1597,23 +1270,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for lowBNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 1){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 0){
                             baseNote = 47;
@@ -1631,23 +1299,18 @@ void pickNote(){
       }
     }
   }
-
   // Test for lowBFlat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
-
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-
             if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 1){
-
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-
                         if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 1){
                             baseNote = 46;
@@ -1665,110 +1328,86 @@ void pickNote(){
       }
     }
   }
-  //  Serial.println("No note available...");
-  //  Serial.println();
-  //  delay(20);
-}  // End of "void pickNote()"
-
+  // Serial.println("No note available...");
+  // Serial.println();
+  // delay(20);
+} // End of "void pickNote()"
 
 
 
 //#################################################################
-//#################################################################
-// Octave Update Function:
-
+//#################    Octave Update Function:    #################
+    Octave Update Function:    
 void setOctave(){
   if(keysPressed[0] == 0 && keysPressed[1] == 0 && keysPressed[2] == 0){
     octave = 48;
   }
-
   else if(keysPressed[0] == 1 && keysPressed[1] == 0 && keysPressed[2] == 0){
     octave = 36;
   }
-
   else if(keysPressed[0] == 1 && keysPressed[1] == 1 && keysPressed[2] == 0){
     octave = 24;
   }
-
   else if(keysPressed[0] == 0 && keysPressed[1] == 1 && keysPressed[2] == 0){
     octave = 12;
   }
-
   else if(keysPressed[0] == 0 && keysPressed[1] == 1 && keysPressed[2] == 1){
     octave = 0;
   }
-
   else if(keysPressed[0] == 0 && keysPressed[1] == 0 && keysPressed[2] == 1){
     octave = -12;
   }
-
   else if(keysPressed[0] == 1 && keysPressed[1] == 1 && keysPressed[2] == 1){
     octave = -24;
   }
-  
-  octave = octave + transposeValue;  // Transpose operation from menu settings
+  octave = octave + transposeValue; // Transpose operation from menu settings
 }
 
-//############################################
-//############################################
-//############################################
-//########  LCD MESSAGE FUNCTIONS:  ##########
 
+
+//##################################################
+//########     LCD MESSAGE FUNCTIONS:     ##########
 void lcdTextLine0(const char* inputString){
   lcdSerial.print('#');
   lcdSerial.print(inputString);
   lcdSerial.print('\n');
-
-//  Serial.println(inputString);
+  // Serial.println(inputString);
 }
-
 void lcdTextLine1(const char* inputString){
   lcdSerial.print('$');
   lcdSerial.print(inputString);
   lcdSerial.print('\n');
-
-//  Serial.print("                ");
-//  Serial.println(inputString);
+  // Serial.print(" ");
+  // Serial.println(inputString);
 }
-
 void lcdInt1Line1(int input){
   lcdSerial.print('%');
   lcdSerial.print(input);
   lcdSerial.print('\n');
-//  Serial.print("                ");
-//  Serial.println(input);
+  // Serial.print(" ");
+  // Serial.println(input);
 }
-
 void lcdInt2Line1(int input){
   lcdSerial.print('*');
   lcdSerial.print(input);
   lcdSerial.print('\n');
-//  Serial.print("                ");
-//  Serial.println(input);
+  // Serial.print(" ");
+  // Serial.println(input);
 }
-
 void lcdOn(){
   lcdSerial.print('[');
-//  Serial.println("lcdOn");
+  // Serial.println("lcdOn");
 }
-
 void lcdOff(){
   lcdSerial.print(']');
-//  Serial.println("lcdOff");
+  // Serial.println("lcdOff");
 }
 
 
-
-
-
-//#################################################
-//#################################################
-//#################################################
-//###########    MAIN MENU FUNCTION:   ############
-
+//########################################################
+//###########    MAIN MENU FUNCTION:   ###################
 void updateMenu(){
   while(1){
-
     // Entering menu for the first time:
     if(firstTime == 1){
       lcdOn();
@@ -1778,85 +1417,74 @@ void updateMenu(){
       lcdTextLine1(mainMenu[menuItem]);
     }
     // First time end.
-
     // Read input:
     if(firstTime == 0){
       rotEncRead();
       encButtonRead();
     }
-     firstTime = 0;   
+    firstTime = 0;
     // Read input end. Turn "firstTime" off
-
-  if(calibrateBreathOn == 1){
-    calibrateBreath();
-  }
-  
-  if(calibrateBendOn == 1){
-    calibrateBend();
-  }
-
-    //#############################################################
-    //#############################################################
-    // ON NEW ENCODER INPUT:
+    if(calibrateBreathOn == 1){
+      calibrateBreath();
+    }
+    if(calibrateBendOn == 1){
+      calibrateBend();
+    }
+//////////////////
+// ON NEW ENCODER INPUT:
     if(newValueBool == 1 && firstTime == 0){
-
       if(activeMenu == 0){
-        menuItem += rotEncDir; // 
+        menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = mainMenuSize - 1;
-        } 
+        }
         else if(menuItem > mainMenuSize - 1){
           menuItem = 1;
         }
-        lcdTextLine1(mainMenu[menuItem]);  
+        lcdTextLine1(mainMenu[menuItem]);
       }
-
       else if(activeMenu == 1){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = breathMenuSize - 1;
-        }  
+        }
         else if(menuItem > breathMenuSize - 1){
           menuItem = 1;
         }
-        lcdTextLine1(breathMenu[menuItem]);  
+        lcdTextLine1(breathMenu[menuItem]);
       }
-
       else if(activeMenu == 2){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = bendMenuSize - 1;
-        }  
+        }
         else if(menuItem > bendMenuSize - 1){
           menuItem = 1;
         }
-        lcdTextLine1(bendMenu[menuItem]);  
+        lcdTextLine1(bendMenu[menuItem]);
       }
-
       else if(activeMenu == 3){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = modeMenuSize - 1;
-        }  
+        }
         else if(menuItem > modeMenuSize - 1){
           menuItem = 1;
         }
-        lcdTextLine1(modeMenu[menuItem]);  
+        lcdTextLine1(modeMenu[menuItem]);
       }
-
       else if(activeMenu == 4){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = instrumentMenuSize - 1;
-        }  
+        }
         else if(menuItem > instrumentMenuSize - 1){
           menuItem = 1;
         }
-        lcdTextLine1(instrumentMenu[menuItem]);  
+        lcdTextLine1(instrumentMenu[menuItem]);
       }
-
       else if(activeMenu == 11){
-        breathRangeValue += rotEncDir; 
+        breathRangeValue += rotEncDir;
         if(breathRangeValue < 0){
           breathRangeValue = 0;
         }
@@ -1865,9 +1493,8 @@ void updateMenu(){
         }
         lcdInt1Line1(breathRangeValue);
       }
-
       else if(activeMenu == 12){
-        breathBufferValue += rotEncDir; 
+        breathBufferValue += rotEncDir;
         if(breathBufferValue < 0){
           breathBufferValue = 0;
         }
@@ -1876,20 +1503,18 @@ void updateMenu(){
         }
         lcdInt1Line1(breathBufferValue);
       }
-
       else if(activeMenu == 13){
         if(menuItem == 1){
           menuItem = 2;
           lcdTextLine1(breathCalMenu[menuItem]);
-        }           
+        }
         else if(menuItem == 2){
           menuItem = 1;
           lcdTextLine1(breathCalMenu[menuItem]);
         }
       }
-
       else if(activeMenu == 21){
-        bendRangeValue += rotEncDir; 
+        bendRangeValue += rotEncDir;
         if(bendRangeValue < 0){
           bendRangeValue = 0;
         }
@@ -1898,9 +1523,8 @@ void updateMenu(){
         }
         lcdInt1Line1(bendRangeValue);
       }
-
       else if(activeMenu == 22){
-        bendBufferValue += rotEncDir; 
+        bendBufferValue += rotEncDir;
         if(bendBufferValue < 0){
           bendBufferValue = 0;
         }
@@ -1909,61 +1533,58 @@ void updateMenu(){
         }
         lcdInt1Line1(bendBufferValue);
       }
-
       else if(activeMenu == 23){
         if(menuItem == 1){
           menuItem = 2;
           lcdTextLine1(bendCalMenu[menuItem]);
-        }           
+        }
         else if(menuItem == 2){
           menuItem = 1;
           lcdTextLine1(bendCalMenu[menuItem]);
-        }  
+        }
       }
-
       else if(activeMenu == 31){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = normalModeMenuSize - 2;
-        }  
+        }
         else if(menuItem > normalModeMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(normalModeMenu[menuItem]);  
+        lcdTextLine1(normalModeMenu[menuItem]);
       }
       else if(activeMenu == 32){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = sustainModeMenuSize - 2;
-        }  
+        }
         else if(menuItem > sustainModeMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(sustainModeMenu[menuItem]);  
-      }     
+        lcdTextLine1(sustainModeMenu[menuItem]);
+      }
       else if(activeMenu == 33){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = intervalModeMenuSize - 2;
-        }  
+        }
         else if(menuItem > intervalModeMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(intervalModeMenu[menuItem]);  
-      } 
+        lcdTextLine1(intervalModeMenu[menuItem]);
+      }
       else if(activeMenu == 34){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = chordModeMenuSize - 2;
-        }  
+        }
         else if(menuItem > chordModeMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(chordModeMenu[menuItem]);  
+        lcdTextLine1(chordModeMenu[menuItem]);
       }
-
       else if(activeMenu == 41){
-        pickInstrValue += rotEncDir; 
+        pickInstrValue += rotEncDir;
         if(pickInstrValue < 0){
           pickInstrValue = 0;
         }
@@ -1972,9 +1593,8 @@ void updateMenu(){
         }
         lcdInt1Line1(pickInstrValue);
       }
-
       else if(activeMenu == 42){
-        transposeValue += rotEncDir; 
+        transposeValue += rotEncDir;
         if(transposeValue < -12){
           transposeValue = -12;
         }
@@ -1983,54 +1603,46 @@ void updateMenu(){
         }
         lcdInt1Line1(transposeValue);
       }
-
       else if(activeMenu == 43){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = saveSetMenuSize - 2;
-        }  
+        }
         else if(menuItem > saveSetMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(saveSetMenu[menuItem]);  
+        lcdTextLine1(saveSetMenu[menuItem]);
       }
-
       else if(activeMenu == 44){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = loadSavedSetMenuSize - 2;
-        }  
+        }
         else if(menuItem > loadSavedSetMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(loadSavedSetMenu[menuItem]);  
+        lcdTextLine1(loadSavedSetMenu[menuItem]);
       }
       else if(activeMenu == 45){
         menuItem += rotEncDir; //
         if(menuItem < 1){
           menuItem = loadFactSetMenuSize - 2;
-        }  
+        }
         else if(menuItem > loadFactSetMenuSize - 2){
           menuItem = 1;
         }
-        lcdTextLine1(loadFactSetMenu[menuItem]);  
+        lcdTextLine1(loadFactSetMenu[menuItem]);
       }
-
     }
-
     newValueBool = 0;
-    firstTime = 0;  
-
-
-    //#############################################################
-    //#############################################################
-    // ON BUTTON PRESS: //
-
+    firstTime = 0;
+////////////////////
+// ON BUTTON PRESS:
     if(buttonPressed == 1){
 
-      //#############################################################
-      //#### MAIN MENU BUTTON SECTION:
-      if(activeMenu == 0){ 
+//#############################################################
+//#### MAIN MENU BUTTON SECTION:
+      if(activeMenu == 0){
         if(menuItem == 1){
           activeMenu = menuItem;
           lcdTextLine0(breathMenu[0]);
@@ -2061,10 +1673,9 @@ void updateMenu(){
           return;
         }
       }
-
-      //#############################################################
-      //#### BREATH MENU BUTTON SECTION:
-      else if(activeMenu == 1){ 
+//#############################################################
+//#### BREATH MENU BUTTON SECTION:
+      else if(activeMenu == 1){
         if(menuItem == 1){
           activeMenu = 11;
           lcdTextLine0(breathRangeTitle);
@@ -2089,9 +1700,9 @@ void updateMenu(){
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-      //#############################################################
-      //#### BEND MENU BUTTON SECTION:
-      else if(activeMenu == 2){ 
+//#############################################################
+//#### BEND MENU BUTTON SECTION:
+      else if(activeMenu == 2){
         if(menuItem == 1){
           activeMenu = 21;
           lcdTextLine0(bendRangeTitle);
@@ -2116,9 +1727,9 @@ void updateMenu(){
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-      //#############################################################
-      //#### MODE MENU BUTTON SECTION:
-      else if(activeMenu == 3){ 
+//#############################################################
+//#### MODE MENU BUTTON SECTION:
+      else if(activeMenu == 3){
         if(menuItem == 1){
           activeMenu = 31;
           lcdTextLine0(normalModeMenu[0]);
@@ -2149,9 +1760,9 @@ void updateMenu(){
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-      //#############################################################
-      //#### INSTRUMENT MENU BUTTON SECTION:
-      else if(activeMenu == 4){ 
+//#############################################################
+//#### INSTRUMENT MENU BUTTON SECTION:
+      else if(activeMenu == 4){
         if(menuItem == 1){
           activeMenu = 41;
           lcdTextLine0(pickInstrTitle);
@@ -2188,36 +1799,30 @@ void updateMenu(){
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-
-
-      //#############################################################      
-      //#### BREATH RANGE MENU BUTTON SECTION:      
+//#############################################################
+//#### BREATH RANGE MENU BUTTON SECTION:
       else if(activeMenu == 11){
         activeMenu = 1;
         menuItem = 1;
         lcdTextLine0(breathMenu[0]);
         lcdTextLine1(breathMenu[menuItem]);
       }
-
-      //#############################################################      
-      //#### BREATH BUFFER MENU BUTTON SECTION:      
+//#############################################################
+//#### BREATH BUFFER MENU BUTTON SECTION:
       else if(activeMenu == 12){
         activeMenu = 1;
         menuItem = 2;
         lcdTextLine0(breathMenu[0]);
         lcdTextLine1(breathMenu[menuItem]);
       }
-
-      //#############################################################      
-      //#### BREATH CALIBRATION MENU BUTTON SECTION:      
+//#############################################################
+//#### BREATH CALIBRATION MENU BUTTON SECTION:
       else if(activeMenu == 13){
         if(menuItem == 1){
           menuItem = 3;
-
           breathMinValue = 1023;
-          breathMaxValue = 0; 
+          breathMaxValue = 0;
           calibrateBreathOn = 1;
-          
           lcdTextLine1(breathCalMenu[menuItem]);
         }
         else if(menuItem == 2){
@@ -2230,65 +1835,58 @@ void updateMenu(){
           activeMenu = 0;
           menuItem = 1;
           calibrateBreathOn = 0;
-          
           lcdTextLine0(mainMenu[0]);
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-
-      //#############################################################      
-      //#### BEND RANGE MENU BUTTON SECTION:      
+//#############################################################
+//#### BEND RANGE MENU BUTTON SECTION:
       else if(activeMenu == 21){
         activeMenu = 2;
         menuItem = 1;
         lcdTextLine0(bendMenu[0]);
         lcdTextLine1(bendMenu[menuItem]);
       }
-
-      //#############################################################      
-      //#### BEND BUFFER MENU BUTTON SECTION:      
+//#############################################################
+//#### BEND BUFFER MENU BUTTON SECTION:
       else if(activeMenu == 22){
         activeMenu = 2;
         menuItem = 2;
         lcdTextLine0(bendMenu[0]);
         lcdTextLine1(bendMenu[menuItem]);
-      }  
-
-      //#############################################################      
-      //#### BEND CALIBRATION MENU BUTTON SECTION:      
+      }
+//#############################################################
+//#### BEND CALIBRATION MENU BUTTON SECTION:
       else if(activeMenu == 23){
         if(menuItem == 1){
-          menuItem = 3;            
+          menuItem = 3;
           potm = analogRead(bendPin);
           bendMidValue = potm;
-          calibrateBendOn = 1;  // START CALIBRATION
+          calibrateBendOn = 1; // START CALIBRATION
           bendMinValue = 1023;
           bendMaxValue = 0;
-          lcdTextLine1(bendCalMenu[menuItem]);  
+          lcdTextLine1(bendCalMenu[menuItem]);
         }
         else if(menuItem == 2){
           activeMenu = 2;
-          menuItem = 3; 
+          menuItem = 3;
           lcdTextLine0(bendMenu[0]);
           lcdTextLine1(bendMenu[menuItem]);
         }
         else if(menuItem == 3){
           activeMenu = 0;
           menuItem = 2;
-         
           potm = analogRead(bendPin);
           bendMidValue = (bendMidValue + potm) / 2;
           Serial.println(bendMidValue);
-          calibrateBendOn = 0;      // END CALIBRATION
-          
+          calibrateBendOn = 0; // END CALIBRATION
           lcdTextLine0(mainMenu[0]);
           lcdTextLine1(mainMenu[menuItem]);
         }
       }
-
-      //#############################################################
-      //#### MODE MENU BUTTON SECTION:
-      else if(activeMenu >= 31 && activeMenu <= 34){ 
+//#############################################################
+//#### MODE MENU BUTTON SECTION:
+      else if(activeMenu >= 31 && activeMenu <= 34){
         if(menuItem == 1){
           activeMenu = 3;
           lcdTextLine0(modeMenu[0]);
@@ -2297,41 +1895,38 @@ void updateMenu(){
         else if(menuItem == 2){
           menuItem = 3;
           if(activeMenu == 31){
-            modeValue = 'N';            // 'N' == Normal mode
+            modeValue = 'N'; // 'N' == Normal mode
           }
           else if(activeMenu == 32){
-            modeValue = 'S';            // 'S' == Sustain mode
+            modeValue = 'S'; // 'S' == Sustain mode
           }
           else if(activeMenu == 33){
-            modeValue = 'I';            // 'I' == Interval mode
-          }          
-          else if(activeMenu == 34){
-            modeValue = 'C';            // 'C' == Chords mode
+            modeValue = 'I'; // 'I' == Interval mode
           }
-          lcdTextLine1(normalModeMenu[menuItem]); // Show generic "confirmed" message, wait for button release. 
+          else if(activeMenu == 34){
+            modeValue = 'C'; // 'C' == Chords mode
+          }
+          lcdTextLine1(normalModeMenu[menuItem]); // Show generic "confirmed" message, wait for button release.
         }
       }
-
-      //#############################################################      
-      //#### PICK INSTRUMENT MENU BUTTON SECTION:      
+//#############################################################
+//#### PICK INSTRUMENT MENU BUTTON SECTION:
       else if(activeMenu == 41){
         activeMenu = 4;
         menuItem = 1;
         lcdTextLine0(instrumentMenu[0]);
         lcdTextLine1(instrumentMenu[menuItem]);
       }
-
-      //#############################################################      
-      //#### Transpose MENU BUTTON SECTION:      
+//#############################################################
+//#### Transpose MENU BUTTON SECTION:
       else if(activeMenu == 42){
         activeMenu = 4;
         menuItem = 2;
         lcdTextLine0(instrumentMenu[0]);
         lcdTextLine1(instrumentMenu[menuItem]);
       }
-
-      //#############################################################      
-      //#### SAVE SETTINGS MENU BUTTON SECTION:      
+//#############################################################
+//#### SAVE SETTINGS MENU BUTTON SECTION:
       else if(activeMenu == 43){
         if(menuItem == 1){
           activeMenu = 4;
@@ -2341,13 +1936,12 @@ void updateMenu(){
         }
         else if(menuItem == 2){
           menuItem = 3;
-          lcdTextLine1(saveSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release. 
+          lcdTextLine1(saveSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release.
           saveAllSettings();
-        }          
-      }    
-
-      //#############################################################      
-      //#### LOAD SETTINGS MENU BUTTON SECTION:      
+        }
+      }
+//#############################################################
+//#### LOAD SETTINGS MENU BUTTON SECTION:
       else if(activeMenu == 44){
         if(menuItem == 1){
           activeMenu = 4;
@@ -2357,13 +1951,12 @@ void updateMenu(){
         }
         else if(menuItem == 2){
           menuItem = 3;
-          lcdTextLine1(loadSavedSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release. 
+          lcdTextLine1(loadSavedSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release.
           loadAllSettings();
-        }          
+        }
       }
-
-      //#############################################################      
-      //#### RESTORE FACTORY SETTINGS MENU BUTTON SECTION:
+//#############################################################
+//#### RESTORE FACTORY SETTINGS MENU BUTTON SECTION:
       else if(activeMenu == 45){
         if(menuItem == 1){
           activeMenu = 4;
@@ -2373,28 +1966,24 @@ void updateMenu(){
         }
         else if(menuItem == 2){
           menuItem = 3;
-          lcdTextLine1(loadFactSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release. 
+          lcdTextLine1(loadFactSetMenu[menuItem]); // Show generic "confirmed" message, wait for button release.
           restoreFactorySettings();
-        }          
-      } 
+        }
+      }
     } // if(buttonPressed == 1) end
     buttonPressed = 0;
 
 
 
-
-    //#############################################################
-    //#############################################################
-    //#############################################################
-    // ON BUTTON RELEASE: //
+//#############################################################
+// ON BUTTON RELEASE: 
     if(buttonReleased == 1){
-
       //#############################################################
-      //#### MODE MENU BUTTON release SECTION:      
+      //#### MODE MENU BUTTON release SECTION:
       if(activeMenu >= 31 && activeMenu <= 34){
         if(menuItem == 3){
           activeMenu = 0;
-          menuItem = 3;         
+          menuItem = 3;
           lcdTextLine0(mainMenu[0]);
           lcdTextLine1(mainMenu[menuItem]);
         }
@@ -2402,7 +1991,7 @@ void updateMenu(){
       if(activeMenu == 43){
         if(menuItem == 3){
           activeMenu = 4;
-          menuItem = 3;         
+          menuItem = 3;
           lcdTextLine0(instrumentMenu[0]);
           lcdTextLine1(instrumentMenu[menuItem]);
         }
@@ -2410,7 +1999,7 @@ void updateMenu(){
       if(activeMenu == 44){
         if(menuItem == 3){
           activeMenu = 4;
-          menuItem = 4;         
+          menuItem = 4;
           lcdTextLine0(instrumentMenu[0]);
           lcdTextLine1(instrumentMenu[menuItem]);
         }
@@ -2418,59 +2007,39 @@ void updateMenu(){
       if(activeMenu == 45){
         if(menuItem == 3){
           activeMenu = 4;
-          menuItem = 5;         
+          menuItem = 5;
           lcdTextLine0(instrumentMenu[0]);
           lcdTextLine1(instrumentMenu[menuItem]);
         }
       }
     }
     buttonReleased = 0;
-    
-    
-//##################################################
-//########### CALIBRATION CALLS:    ################
-
-  
-  
-  
-  
-  
-  
-  
-    
+    //##################################################
+    //########### CALIBRATION CALLS: ################
   } //while(1) end
 } //void updateMenu() end)
 
 
 
-//############################################
-//############################################
-//############################################
-//###  SAVE / UPDATE SETTINGS FUNCTIONS:  ####
-
-
+//####################################################################
+//################ SAVE / UPDATE SETTINGS FUNCTIONS: #################
 void loadAllSettings(){
   breathRangeValue = loadSetting(breathRangeValue, 0);
   breathBufferValue = loadSetting(breathBufferValue, 2);
   breathMinValue = loadSetting(breathMinValue, 4);
   breathMaxValue = loadSetting(breathMaxValue, 6);
-
   bendRangeValue = loadSetting(bendRangeValue, 8);
   bendBufferValue = loadSetting(bendBufferValue, 80);
   bendMinValue = loadSetting(bendMinValue, 10);
   bendMidValue = loadSetting(bendMidValue, 12);
   bendMaxValue = loadSetting(bendMaxValue, 14);
-
   pickInstrValue = loadSetting(pickInstrValue, 16);
   transposeValue = loadSetting(transposeValue, 18);
-
   byte tempByte = EEPROM.read(20); // modeValue is a byte, not an int.
   if(tempByte != modeValue){
     modeValue = tempByte;
   }
 }
-
-
 int loadSetting(int value, int memPos){
   int tempInt = EEPROM.read(memPos);
   if(tempInt != value){
@@ -2478,35 +2047,63 @@ int loadSetting(int value, int memPos){
     return(value);
   }
 }
-
 void saveAllSettings(){
-  EEPROM.updateInt(0, breathRangeValue);  
+  EEPROM.updateInt(0, breathRangeValue);
   EEPROM.updateInt(2, breathBufferValue);
   EEPROM.updateInt(4, breathMinValue);
-  EEPROM.updateInt(6, breathMaxValue); 
-  EEPROM.updateInt(8, bendRangeValue); 
+  EEPROM.updateInt(6, breathMaxValue);
+  EEPROM.updateInt(8, bendRangeValue);
   EEPROM.updateInt(10, bendBufferValue);
   EEPROM.updateInt(12, bendMinValue);
   EEPROM.updateInt(14, bendMidValue);
   EEPROM.updateInt(16, bendMaxValue);
-  EEPROM.updateInt(18, pickInstrValue); 
-  EEPROM.updateInt(20, transposeValue); 
+  EEPROM.updateInt(18, pickInstrValue);
+  EEPROM.updateInt(20, transposeValue);
   EEPROM.updateByte(22, modeValue); // Modes: 'N
 }
-
 void restoreFactorySettings(){
   breathRangeValue = breathRangeValueFact;
   breathBufferValue = breathBufferValueFact;
   breathMinValue = breathMinValueFact;
   breathMaxValue = breathMaxValueFact;
-
   bendRangeValue = bendRangeValueFact;
   bendBufferValue = bendBufferValueFact;
   bendMinValue = bendMinValueFact;
   bendMidValue = bendMidValueFact;
   bendMaxValue = bendMaxValueFact;
-
   pickInstrValue = pickInstrValueFact;
   transposeValue = transposeValueFact;
   modeValue = modeValueFact;
+}
+
+
+//#################################################################
+//#################################################################
+// DEBOUNCE:
+// Debounce function for buttons and keys
+boolean debounce(byte pin, boolean last, byte debounceTime){
+  boolean current = digitalRead(pin);
+  if(last != current){
+    delay(debounceTime);
+    current = digitalRead(pin);
+  }
+  return current;
+}
+
+
+//###################################################################
+//###################################################################
+// SORT FUNCTION FOR THE MEDIAN FILTER:
+void isort(int *a, int n){
+  // *a is an array pointer, n is the array size
+  for (int i = 1; i < n; ++i)
+  {
+    int j = a[i];
+    int k;
+    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
+    {
+      a[k + 1] = a[k];
+    }
+    a[k + 1] = j;
+  }
 }
