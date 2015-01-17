@@ -4,14 +4,17 @@
 // Open Horn Midi system / "OHMs"
 // Arduino Micro - Main Code v0.51
 // Copyright 2014, Jeppe Tofthøj Rasmussen
+
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
+
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
+
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,6 +22,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
 //#####################################################
 //#####################################################
 #include <EEPROMex.h>
@@ -118,7 +122,7 @@ byte harmonic = 0;
 // #####harmonic limit constants for bite sensor:
 //const byte firstHarmonic = 800;
 //const byte secondHarmonic = 500;
-//const byte thirdHarmonic = 350;
+//const byte thirdHarmonic = 350;  
 //const byte fourthHarmonic = 275;
 //const byte fifthHarmonic = 225;
 //const byte sixthHarmonic = 190;
@@ -144,15 +148,15 @@ int breathArray[] = {
 //#####################################################################
 //########################   MIDI VARIABLES:  #########################
 //MIDI Commands:
-byte noteON = 144;//144 = 10010000 in binary, this is the standard note on command
-byte pitchBend = 224;//224 = 11100000 in binary, this is the standard pitchbend command
+byte noteON = 144;
+byte pitchBend = 224;
 byte continuousController = 176;
 byte sostenuto = 66;
 byte footController = 4;
 byte bankSelect = 0;
 byte modulationControl = 1;
-boolean sendMessage = 0; // If either of velocity, note or pitchBend have changed since last reading, this variable
-// is set to 1, and a new midi message will be sent this time around the loop.
+boolean sendMessage = 0; // 
+
 //Pin = 14; // MISO pin
 //Pin = 15; // SCK pin
 //Pin = 16; // MOSI pin
@@ -474,7 +478,7 @@ void setup(){
   digitalWrite(rotEncPin2, HIGH); //turn pullup resistor on
   digitalWrite(rotEncButtonPin, HIGH); //turn pullup resistor on
 
-  // Serial.begin(9600); // Debug Serial
+//  Serial.begin(9600); // Debug Serial
   midiSerial.begin(31250);
   lcdSerial.begin(9600);
   
@@ -552,15 +556,18 @@ void loop(){
 //
 // MIDI MESSAGE SECTION:
   if(sendMessage == 1){
+    
     if(currentNote != lastNote){
       sendMidi(noteON, currentNote, velocity);
       sendMidi(noteON, lastNote, 0);
     }
     else if(velocity != lastVelocity){
-      sendMidi(continuousController, 2, velocity);
-    }
-    if(velocity != 0 && lastVelocity == 0){
-      sendMidi(noteON, currentNote, velocity);
+      if(velocity != 0 && lastVelocity == 0){
+        sendMidi(noteON, currentNote, velocity);
+      }
+      else{
+        sendMidi(continuousController, 2, velocity);
+      }
     }
     if(velocity == 0){
       sendMidi(noteON, currentNote, 0);
@@ -580,22 +587,22 @@ void loop(){
     
 
 // MAIN DEBUG:
-    // if(sendMessage == 1){
-    // Serial.println();
-    // // Serial.print("Reference pressure: ");
-    // // Serial.println(refPressure);
-    // // Serial.print("Current pressure: ");
-    // // Serial.println(currentPressure);
-    // Serial.print("Velocity: ");
-    // Serial.println(velocity);
-    // Serial.print("Current Note: ");
-    // Serial.println(currentNote);
-    // Serial.print("Note bend value: ");
-    // Serial.println(bendVal);
-    // Serial.print("Rotary encoder position: ");
-    // Serial.println(encoderOutput);
-    // delay(20);
-    // }
+// if(sendMessage == 1){
+// Serial.println();
+ // Serial.print("Reference pressure: ");
+ // Serial.println(refPressure);
+ // Serial.print("Current pressure: ");
+ // Serial.println(currentPressure);
+// Serial.print("Velocity: ");
+// Serial.println(velocity);
+// Serial.print("Current Note: ");
+// Serial.println(currentNote);
+// Serial.print("Note bend value: ");
+// Serial.println(bendVal);
+// Serial.print("Rotary encoder position: ");
+// Serial.println(encoderOutput);
+// delay(20);
+// }
     sendMessage = 0;
   }
 } // End of main loop
@@ -668,6 +675,9 @@ void updatePressure(){
     fsrBreathSaved = fsrBreathPressure;
   }
 }
+
+
+
 
 void calibrateBreath(){
   int i;
@@ -1337,7 +1347,6 @@ void pickNote(){
 
 //#################################################################
 //#################    Octave Update Function:    #################
-    Octave Update Function:    
 void setOctave(){
   if(keysPressed[0] == 0 && keysPressed[1] == 0 && keysPressed[2] == 0){
     octave = 48;
@@ -2029,13 +2038,13 @@ void loadAllSettings(){
   breathMinValue = loadSetting(breathMinValue, 4);
   breathMaxValue = loadSetting(breathMaxValue, 6);
   bendRangeValue = loadSetting(bendRangeValue, 8);
-  bendBufferValue = loadSetting(bendBufferValue, 80);
-  bendMinValue = loadSetting(bendMinValue, 10);
-  bendMidValue = loadSetting(bendMidValue, 12);
-  bendMaxValue = loadSetting(bendMaxValue, 14);
-  pickInstrValue = loadSetting(pickInstrValue, 16);
-  transposeValue = loadSetting(transposeValue, 18);
-  byte tempByte = EEPROM.read(20); // modeValue is a byte, not an int.
+  bendBufferValue = loadSetting(bendBufferValue, 10);
+  bendMinValue = loadSetting(bendMinValue, 12);
+  bendMidValue = loadSetting(bendMidValue, 14);
+  bendMaxValue = loadSetting(bendMaxValue, 16);
+  pickInstrValue = loadSetting(pickInstrValue, 18);
+  transposeValue = loadSetting(transposeValue, 20);
+  byte tempByte = EEPROM.read(22); // modeValue is a byte, not an int.
   if(tempByte != modeValue){
     modeValue = tempByte;
   }
