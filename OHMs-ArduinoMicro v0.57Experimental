@@ -2,7 +2,7 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Arduino Micro - Main Code v0.55-Experimental
+// Arduino Micro - Main Code v0.57
 // Copyright 2014, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -196,7 +196,9 @@ byte intervalLowLastNote;
 byte intervalHighBaseNote;
 byte intervalHighCurrentNote;
 byte intervalHighLastNote;
-
+byte intervalLowPressed; //"bitwrite" variable
+byte intervalHighPressed; //"bitwrite" variable
+  
 
 //#########################################################
 //############### MENU VARIABLES: #########################
@@ -502,7 +504,7 @@ void setup(){
   digitalWrite(rotEncPin2, HIGH); //turn pullup resistor on
   digitalWrite(rotEncButtonPin, HIGH); //turn pullup resistor on
 
-  //  Serial.begin(9600); // Debug Serial
+//  Serial.begin(9600); // Debug Serial
   midiSerial.begin(31250);
   lcdSerial.begin(9600);
 
@@ -574,7 +576,7 @@ void loop(){
   }  
   
     
-  if(modeValue == 'N'){
+  if(modeValue == 'N' || noteKeysPressed[0] == 0){
     pickNote();
     setOctave(); 
     currentNote = baseNote + octave; 
@@ -594,26 +596,81 @@ void loop(){
   // }
 
 
-  //
   // MIDI MESSAGE SECTION:
   if(sendMessage == 1){
 
-    if(currentNote != lastNote){
-      sendMidi(noteON, currentNote, velocity);
-      sendMidi(noteON, lastNote, 0);
+//Interval Midi Message section:
+    if(modeValue == 'I' && noteKeysPressed[0] == 1){
+      if(lastPressed[3] == 0){
+        sendMidi(noteON, currentNote, 0);
+        sendMidi(noteON, lastNote, 0);
+      }
+      
+// intervalHigh Midi messages:
+      
+      if(intervalHighCurrentNote != intervalHighLastNote || intervalLowCurrentNote != intervalLowLastNote){
+        if(intervalHighLastNote != intervalLowCurrentNote){
+          sendMidi(noteON, intervalHighLastNote, 0);     
+        }
+        if(intervalHighPressed != 0){
+          sendMidi(noteON, intervalHighCurrentNote, velocity);
+        }
+        if(intervalLowLastNote != intervalHighCurrentNote){
+          sendMidi(noteON, intervalLowLastNote, 0);
+        }
+        if(intervalLowPressed != 0){
+          sendMidi(noteON, intervalLowCurrentNote, velocity);
+        }
+      }
+     
+// Interval general Midi messages:
+      if(velocity == 0){
+        sendMidi(noteON, intervalHighCurrentNote, 0);
+        sendMidi(noteON, intervalHighLastNote, 0);
+        sendMidi(noteON, intervalLowCurrentNote, 0);
+        sendMidi(noteON, intervalLowLastNote, 0);
+      }
+      else if(velocity != lastVelocity){
+        if(lastVelocity != 0){
+          sendMidi(continuousController, 2, velocity);
+        }
+        else if(lastVelocity == 0){
+          sendMidi(noteON, intervalHighCurrentNote, velocity);
+          sendMidi(noteON, intervalLowCurrentNote, velocity);
+        }
+      }
+
     }
-    else if(velocity != lastVelocity){
-      if(velocity != 0 && lastVelocity == 0){
+    else if(modeValue == 'I' && lastPressed[3] == 1){
+      sendMidi(noteON, intervalHighCurrentNote, 0);
+      sendMidi(noteON, intervalHighLastNote, 0);
+      sendMidi(noteON, intervalLowCurrentNote, 0);
+      sendMidi(noteON, intervalLowLastNote, 0);
+    }    
+//Interval Midi section END:
+
+
+// "Normal mode" Midi messages:
+    else if(modeValue == 'N' || noteKeysPressed[0] == 0){
+      if(currentNote != lastNote){
         sendMidi(noteON, currentNote, velocity);
+        sendMidi(noteON, lastNote, 0);
       }
-      else{
-        sendMidi(continuousController, 2, velocity);
+      else if(velocity != lastVelocity){
+        if(velocity != 0 && lastVelocity == 0){
+          sendMidi(noteON, currentNote, velocity);
+        }
+        else{
+          sendMidi(continuousController, 2, velocity);
+        }
+      }
+      if(velocity == 0){
+        sendMidi(noteON, currentNote, 0);
+        sendMidi(noteON, lastNote, 0);
       }
     }
-    if(velocity == 0){
-      sendMidi(noteON, currentNote, 0);
-      sendMidi(noteON, lastNote, 0);
-    }
+
+// General Midi messages:    
     if(bendVal != lastBend){
       sendMidi(pitchBend, 0, bendVal);
     }
@@ -621,29 +678,40 @@ void loop(){
     // sendMidi(modulationControl, 0, biteVal);
     // lastBite = biteVal;
     // }
+    
     fsrBreathSaved = fsrBreathPressure;
     lastVelocity = velocity;
     lastNote = currentNote;
+    intervalHighLastNote = intervalHighCurrentNote;
+    intervalLowLastNote = intervalLowCurrentNote;
     lastBend = bendVal;
 
+//    MAIN DEBUG:
+//    if(sendMessage == 1){
+//      Serial.println();
+//      Serial.print("Reference pressure: ");
+//      Serial.println(refPressure);
+//      Serial.print("Current pressure: ");
+//      Serial.println(currentPressure);
+//      Serial.print("Velocity: ");
+//      Serial.println(velocity);
+//      if(modeValue == 'I' && noteKeysPressed[0] == 1){
+//        Serial.print("Interval High Note: ");
+//        Serial.println(intervalHighCurrentNote);
+//        Serial.print("Interval Low Note: ");
+//        Serial.println(intervalLowCurrentNote);
+//      }
+//      else{
+//        Serial.print("Current Note: ");
+//        Serial.println(currentNote);
+//      }
 
-    // MAIN DEBUG:
-    // if(sendMessage == 1){
-    // Serial.println();
-    // Serial.print("Reference pressure: ");
-    // Serial.println(refPressure);
-    // Serial.print("Current pressure: ");
-    // Serial.println(currentPressure);
-    // Serial.print("Velocity: ");
-    // Serial.println(velocity);
-    // Serial.print("Current Note: ");
-    // Serial.println(currentNote);
-    // Serial.print("Note bend value: ");
-    // Serial.println(bendVal);
-    // Serial.print("Rotary encoder position: ");
-    // Serial.println(encoderOutput);
-    // delay(20);
-    // }
+//      Serial.print("Note bend value: ");
+//      Serial.println(bendVal);
+//      Serial.print("Rotary encoder position: ");
+//      Serial.println(encoderOutput);
+//      delay(20);
+//    }
     sendMessage = 0;
   }
 } // End of main loop
@@ -848,41 +916,30 @@ void encButtonRead(){
 //##################    PICK INTERVAL:    #########################
 
 void pickInterval(){
-  byte intervalLowPressed;
-  byte intervalHighPressed;
-  
   int i;
   byte n = 0;
-  for(i = 5; i < 9; i++){
+  for(i = 7; i > 3; i--){
     bitWrite(intervalHighPressed, n, keysPressed[i]);
     n++;
   }
   
   n = 0;
-  for(i = 11; i < 15; i++){
+  for(i = 13; i > 9; i--){
     bitWrite(intervalLowPressed, n, keysPressed[i]);
     n++;
-  }  
+  }
+  if(intervalHighPressed != 0){
+    intervalHighBaseNote = 59 + intervalOctDist + intervalHighPressed;
+  }
   
-  intervalHighBaseNote = 59 + intervalOctDist + intervalHighPressed;
-  
-  intervalLowBaseNote = 59 + intervalLowPressed;
+  if(intervalLowPressed != 0){
+    intervalLowBaseNote = 59 + intervalLowPressed;// "0000" is used as an "empty", to turn off the note. 
+  }                                               //So "0001"(= decimal 1) means C (Midi note "59 + 1" = 60).  
+  noteKeysPressed[0] = keysPressed[3];
+// This is the "high D" key, used for turning interval mode on and off on the fly.
 
 }
 
-
-
-//  byte n = 0;
-//  for(i = 5; i < 9; i++){
-//    IntervalHighPressed[n] = keysPressed[i];
-//    n++;
-//  }
-//  n = 0;
-//  for(i = 11; i < 15; i++){
-//    IntervalLowPressed[n] = keysPressed[i];
-//    n++;
-//  }
-//}
 
 
 //#################################################################
@@ -898,21 +955,23 @@ void pickNote(){
 
   boolean correct = 0;
   // Test for highEFlat:
-  if(correct == 0){
-    if(noteKeysPressed[0] == 1){
-      if(noteKeysPressed[1] == 0){
-        if(noteKeysPressed[2] == 0){
-          if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 1){
-                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
-                            baseNote = 63;
-                            correct = 1;
+  if(modeValue == 'N'){
+    if(correct == 0){
+      if(noteKeysPressed[0] == 1){
+        if(noteKeysPressed[1] == 0){
+          if(noteKeysPressed[2] == 0){
+            if(noteKeysPressed[3] == 0){
+              if(noteKeysPressed[4] == 0){
+                if(noteKeysPressed[5] == 1){
+                  if(noteKeysPressed[6] == 0){
+                    if(noteKeysPressed[7] == 0){
+                      if(noteKeysPressed[8] == 0){
+                        if(noteKeysPressed[9] == 0){
+                          if(noteKeysPressed[10] == 0){
+                            if(noteKeysPressed[11] == 0){
+                              baseNote = 63;
+                              correct = 1;
+                            }
                           }
                         }
                       }
@@ -925,23 +984,23 @@ void pickNote(){
         }
       }
     }
-  }
-  // Test for highDNat:
-  if(correct == 0){
-    if(noteKeysPressed[0] == 1){
-      if(noteKeysPressed[1] == 0){
-        if(noteKeysPressed[2] == 0){
-          if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
-                            baseNote = 62;
-                            correct = 1;
+    // Test for highDNat:
+    if(correct == 0){
+      if(noteKeysPressed[0] == 1){
+        if(noteKeysPressed[1] == 0){
+          if(noteKeysPressed[2] == 0){
+            if(noteKeysPressed[3] == 0){
+              if(noteKeysPressed[4] == 0){
+                if(noteKeysPressed[5] == 0){
+                  if(noteKeysPressed[6] == 0){
+                    if(noteKeysPressed[7] == 0){
+                      if(noteKeysPressed[8] == 0){
+                        if(noteKeysPressed[9] == 0){
+                          if(noteKeysPressed[10] == 0){
+                            if(noteKeysPressed[11] == 0){
+                              baseNote = 62;
+                              correct = 1;
+                            }
                           }
                         }
                       }
@@ -2290,4 +2349,3 @@ void isort(int *a, int n){
     a[k + 1] = j;
   }
 }
-
