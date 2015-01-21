@@ -2,7 +2,7 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Arduino Micro - Main Code v0.57
+// Arduino Micro - Main Code v0.58
 // Copyright 2014, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -609,17 +609,26 @@ void loop(){
 // intervalHigh Midi messages:
       
       if(intervalHighCurrentNote != intervalHighLastNote || intervalLowCurrentNote != intervalLowLastNote){
-        if(intervalHighLastNote != intervalLowCurrentNote){
+// Turn off old notes where needed:
+        if(intervalHighCurrentNote != intervalHighLastNote && intervalHighLastNote != intervalLowCurrentNote){
           sendMidi(noteON, intervalHighLastNote, 0);     
         }
-        if(intervalHighPressed != 0){
-          sendMidi(noteON, intervalHighCurrentNote, velocity);
-        }
-        if(intervalLowLastNote != intervalHighCurrentNote){
+        if(intervalLowCurrentNote != intervalLowLastNote && intervalLowLastNote != intervalHighCurrentNote){
           sendMidi(noteON, intervalLowLastNote, 0);
         }
+// Turn on new notes where needed:        
+        if(intervalHighPressed == 0){
+          intervalHighCurrentNote = intervalLowCurrentNote;
+        }
+        else{
+          sendMidi(noteON, intervalHighCurrentNote, velocity);
+        }
+
         if(intervalLowPressed != 0){
           sendMidi(noteON, intervalLowCurrentNote, velocity);
+        }
+        else{
+          intervalLowCurrentNote = intervalHighCurrentNote;
         }
       }
      
@@ -2095,7 +2104,7 @@ void updateMenu(){
         }
         else if(menuItem == 3){
           menuItem = 4;
-          lcdTextLine1(modeMenu[menuItem]);
+          lcdTextLine1(intervalModeMenu[menuItem]);
         }
       }
           
