@@ -2,8 +2,8 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Arduino Micro - Main Code v0.66
-// Copyright 2014, Jeppe Tofthøj Rasmussen
+// Arduino Micro - Main Code v0.67
+// Copyright 2015, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,47 +43,9 @@ byte keyPins[] = {
 #define NUMKEYS sizeof(keyPins)
 #define NUMNOTEKEYS 12
 
-//###################################################################
-//###########  Fingering-arrays (Key combinations)  ################
-byte highEFlat[NUMNOTEKEYS] = {
-  1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
-byte highDNat[NUMNOTEKEYS] = {
-  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte cSharp[NUMNOTEKEYS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte cNat[NUMNOTEKEYS] = {
-  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte bNat[NUMNOTEKEYS] = {
-  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte bFlat[NUMNOTEKEYS] = {
-  0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0};
-byte aNat[NUMNOTEKEYS] = {
-  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte aFlat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
-byte gNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-byte fSharp[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0};
-byte fNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0};
-byte eNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0};
-byte eFlat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0};
-byte dNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0};
-byte lowCSharp[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1};
-byte lowCNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1};
-byte lowBNat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0};
-byte lowBFlat[NUMNOTEKEYS] = {
-  0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1};
 
 // Interval Keys:
-//0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0};
+// 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0};
   
 //Main array which stores the current state of each key pin:
 byte keysPressed[NUMKEYS];
@@ -94,10 +56,10 @@ byte noteKeysPressed[NUMNOTEKEYS];
 // boolean newKeys;
 
 
-byte baseNote;     
-byte currentNote; 
-byte lastNote;    
-int octave = 0;      
+byte baseNote;       // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63)
+byte currentNote;    // This is the complete, calculated note, including octave.
+byte lastNote;       // This is the last played note, for comparison with new readings.
+int octave = 0;      // A value between -48 and 60 (in increments of 12). Set by setOctave()
 int lastOctave = 0;
 
 //##########################################
@@ -628,9 +590,7 @@ void loop(){
           if(intervalLowPressed != 0){
             sendMidi(noteON, intervalLowCurrentNote, velocity); 
           }
-        }
-  // Turn on new notes where needed:        
-
+        }      
       }
      
 // Interval general Midi messages:
@@ -652,7 +612,7 @@ void loop(){
       }
 
     }
-    else if(modeValue == 'I' && lastPressed[3] == 1){
+    if(modeValue == 'I' && noteKeysPressed[0] == 0 && lastPressed[3] == 1){
       sendMidi(noteON, intervalHighCurrentNote, 0);
       sendMidi(noteON, intervalHighLastNote, 0);
       sendMidi(noteON, intervalLowCurrentNote, 0);
@@ -662,7 +622,7 @@ void loop(){
 
 
 // "Normal mode" Midi messages:
-    else if(modeValue == 'N' || noteKeysPressed[0] == 0){
+    if(modeValue == 'N' || noteKeysPressed[0] == 0){
       if(currentNote != lastNote){
         sendMidi(noteON, currentNote, velocity);
         sendMidi(noteON, lastNote, 0);
@@ -969,86 +929,88 @@ void pickNote(){
   if(modeValue == 'N'){
     if(correct == 0){
       if(noteKeysPressed[0] == 1){
-        if(noteKeysPressed[1] == 0){
-          if(noteKeysPressed[2] == 0){
-            if(noteKeysPressed[3] == 0){
-              if(noteKeysPressed[4] == 0){
+//        if(noteKeysPressed[1] == 0){
+//          if(noteKeysPressed[2] == 0){
+//            if(noteKeysPressed[3] == 0){
+//              if(noteKeysPressed[4] == 0){
                 if(noteKeysPressed[5] == 1){
-                  if(noteKeysPressed[6] == 0){
-                    if(noteKeysPressed[7] == 0){
-                      if(noteKeysPressed[8] == 0){
-                        if(noteKeysPressed[9] == 0){
-                          if(noteKeysPressed[10] == 0){
-                            if(noteKeysPressed[11] == 0){
+//                  if(noteKeysPressed[6] == 0){
+//                    if(noteKeysPressed[7] == 0){
+//                      if(noteKeysPressed[8] == 0){
+//                        if(noteKeysPressed[9] == 0){
+//                          if(noteKeysPressed[10] == 0){
+//                            if(noteKeysPressed[11] == 0){
                               baseNote = 63;
                               correct = 1;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
+//                            }
+//                          }
+//                        }
+//                      }
+//                    }
+//                  }
                 }
-              }
-            }
-          }
-        }
+//              }
+//            }
+//          }
+//        }
       }
     }
     // Test for highDNat:
     if(correct == 0){
       if(noteKeysPressed[0] == 1){
-        if(noteKeysPressed[1] == 0){
-          if(noteKeysPressed[2] == 0){
-            if(noteKeysPressed[3] == 0){
+//        if(noteKeysPressed[1] == 0){
+//          if(noteKeysPressed[2] == 0){
+//            if(noteKeysPressed[3] == 0){
               if(noteKeysPressed[4] == 0){
-                if(noteKeysPressed[5] == 0){
-                  if(noteKeysPressed[6] == 0){
-                    if(noteKeysPressed[7] == 0){
-                      if(noteKeysPressed[8] == 0){
-                        if(noteKeysPressed[9] == 0){
-                          if(noteKeysPressed[10] == 0){
-                            if(noteKeysPressed[11] == 0){
+//                if(noteKeysPressed[5] == 0){
+//                  if(noteKeysPressed[6] == 0){
+//                    if(noteKeysPressed[7] == 0){
+//                      if(noteKeysPressed[8] == 0){
+//                        if(noteKeysPressed[9] == 0){
+//                          if(noteKeysPressed[10] == 0){
+//                            if(noteKeysPressed[11] == 0){
                               baseNote = 62;
                               correct = 1;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+//                            }
+//                          }
+//                        }
+//                      }
+//                    }
+//                  }
+//                }
               }
-            }
-          }
-        }
+//            }
+//          }
+//        }
       }
     }
   }
+  // if mode == "N" - end
+  
   // Test for cSharp:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
+//                  if(noteKeysPressed[7] == 0){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 61;
                             correct = 1;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+//                          }
+//                        }
+//                      }
+//                    }
+//                  }
+//                }
+//              }
+//            }
           }
         }
       }
@@ -1060,24 +1022,24 @@ void pickNote(){
       if(noteKeysPressed[1] == 0){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
+//                  if(noteKeysPressed[7] == 0){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 60;
                             correct = 1;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+//                          }
+//                        }
+//                      }
+//                    }
+//                  }
+//                }
+//              }
+//            }
           }
         }
       }
@@ -1089,24 +1051,24 @@ void pickNote(){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 59;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
-            }
+//                }
+//              }
+//            }
           }
         }
       }
@@ -1118,24 +1080,24 @@ void pickNote(){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
+//            if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 1){
-                if(noteKeysPressed[6] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 58;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
+//                }
               }
-            }
+//            }
           }
         }
       }
@@ -1147,183 +1109,183 @@ void pickNote(){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 0){
-            if(noteKeysPressed[4] == 0){
+//            if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 57;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
+//                }
               }
-            }
+//            }
           }
         }
       }
     }
-  }
+  } 
   // Test for aFlat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
             if(noteKeysPressed[4] == 1){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 56;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
+//                }
+//              }
             }
           }
         }
       }
-    }
+//    }
   }
   // Test for gNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
             if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 55;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
+//                }
+//              }
             }
           }
         }
       }
-    }
+//    }
   }
   // Test for fSharp:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 54;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
-            }
+//                }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for fNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 0){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 53;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
-            }
+//                }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for eNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 0){
-                        if(noteKeysPressed[10] == 0){
-                          if(noteKeysPressed[11] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
                             baseNote = 52;
                             correct = 1;
-                          }
-                        }
+//                          }
+//                        }
                       }
                     }
                   }
-                }
-              }
-            }
+//                }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for eFlat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
-                if(noteKeysPressed[6] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
@@ -1336,22 +1298,22 @@ void pickNote(){
                       }
                     }
                   }
-                }
-              }
-            }
+//                }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for dNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
@@ -1366,16 +1328,16 @@ void pickNote(){
                     }
                   }
                 }
-              }
-            }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for lowCSharp:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1385,12 +1347,12 @@ void pickNote(){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
                       if(noteKeysPressed[9] == 1){
-                        if(noteKeysPressed[10] == 0){
+//                        if(noteKeysPressed[10] == 0){
                           if(noteKeysPressed[11] == 1){
                             baseNote = 49;
                             correct = 1;
                           }
-                        }
+//                        }
                       }
                     }
                   }
@@ -1400,11 +1362,11 @@ void pickNote(){
           }
         }
       }
-    }
+//    }
   }
   // Test for lowCNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1429,16 +1391,16 @@ void pickNote(){
           }
         }
       }
-    }
+//    }
   }
   // Test for lowBNat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 1){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
@@ -1453,21 +1415,21 @@ void pickNote(){
                     }
                   }
                 }
-              }
-            }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Test for lowBFlat:
   if(correct == 0){
-    if(noteKeysPressed[0] == 0){
+//    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
-            if(noteKeysPressed[4] == 0){
-              if(noteKeysPressed[5] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
                 if(noteKeysPressed[6] == 1){
                   if(noteKeysPressed[7] == 1){
                     if(noteKeysPressed[8] == 1){
@@ -1482,12 +1444,12 @@ void pickNote(){
                     }
                   }
                 }
-              }
-            }
+//              }
+//            }
           }
         }
       }
-    }
+//    }
   }
   // Serial.println("No note available...");
   // Serial.println();
@@ -2361,3 +2323,4 @@ void isort(int *a, int n){
     a[k + 1] = j;
   }
 }
+
