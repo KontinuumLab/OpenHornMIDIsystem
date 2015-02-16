@@ -2,7 +2,7 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Arduino Micro - Main Code v0.67
+// Arduino Micro - Main Code v0.70
 // Copyright 2015, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,20 +56,36 @@ byte noteKeysPressed[NUMNOTEKEYS];
 // boolean newKeys;
 
 
-byte baseNote;       // This is the initial reading of the note, and stores one of 18 notes between lowBFlat and highEFlat (46-63)
-byte currentNote;    // This is the complete, calculated note, including octave.
-byte lastNote;       // This is the last played note, for comparison with new readings.
-int octave = 0;      // A value between -48 and 60 (in increments of 12). Set by setOctave()
+byte baseNote;       
+byte currentNote;    
+byte lastNote;       
+int octave = 0;      
 int lastOctave = 0;
+
+
+// "Intervals" Mode global variables:
+
+byte intervalHighBaseNote;
+byte intervalLowBaseNote;
+byte IntervalBaseNote;
+
+byte currentIntervalNote;
+byte lastIntervalNote;
+byte intervalLowPressed; //"bitwrite" variable
+byte intervalHighPressed; //"bitwrite" variable
+
+boolean intervalActive = 0;
+boolean lastIntervalActive = 0;
+
 
 //##########################################
 //###########  BEND VARIABLES: ############# 
 byte bendPin = A5;  // Pin with the bend sensor on it
 
 //pitchbend data storage:
-byte lsb = 0;//least siginificant byte of pitchbend message (for 127 step resolution, this stays at 0)
+byte lsb = 0;//least siginificant byte for pitchbend 
 byte bendTemp;
-byte bendVal = 64;// (msb) most significant byte of pitchbend message (Bend values from 0 - 127. 64 means no pitchbend)
+byte bendVal = 64;// most significant byte for pitchbende (Bend values from 0 - 127. 64 means no pitchbend)
 byte lastBend = 64;
 int potm;
 // byte bendCenter;
@@ -114,14 +130,22 @@ int breathArray[] = {
 //#####################################################################
 //########################   MIDI VARIABLES:  #########################
 //MIDI Commands:
-byte noteON = 144;
+byte noteONCh1 = 144;
+byte noteONCh2 = 145;
+byte noteOFFCh2 = 129;
+
 byte pitchBend = 224;
 byte continuousController = 176;
 byte sostenuto = 66;
 byte footController = 4;
 byte bankSelect = 0;
 byte modulationControl = 1;
-boolean sendMessage = 0; // 
+
+boolean sendCh1NoteMessage = 0;
+boolean sendCh2NoteMessage = 0;
+boolean sendBendMessage = 0;   
+boolean sendBreathMessage = 0;
+
 
 //boolean primitiveProtocolOn = 1;
 //byte primitiveProtocolCC1 = 11;
@@ -154,17 +178,6 @@ boolean buttonReleased = 0;
 //#########################################################
 //############### MODE VARIABLES: #########################
 
-// "Intervals" Mode global variables:
-
-byte intervalLowBaseNote;
-byte intervalLowCurrentNote;
-byte intervalLowLastNote;
-byte intervalHighBaseNote;
-byte intervalHighCurrentNote;
-byte intervalHighLastNote;
-byte intervalLowPressed; //"bitwrite" variable
-byte intervalHighPressed; //"bitwrite" variable
-  
 
 //#########################################################
 //############### MENU VARIABLES: #########################
@@ -508,154 +521,109 @@ void loop(){
     updateMenu();
   }
 
+
+
+//####################################################################
+//######################   SENSOR LOGIC SECTION:   ###################
+
   int n;
   byte i;
-  // timer1 = millis(); // Update timer1, to keep track of the pressure sensor wait time
-  //
-  updatePressure(); // Updates pressure and velocity values
-  if(velocity != lastVelocity){
-    sendMessage = 1;
-  }
+
   readKeys(); 
 
-// SPLIT HERE INTO DIFFERENT MODES:
-
-
-  /////////////////////////////////////////////////
-  //// Debug for "readKeys()" only:
-  // for (i = 0; i < NUMKEYS; i++){
-  // Serial.print(keysPressed[i]);
-  // }
-  // Serial.println();
-  //// End debug /////////////////////////////////
-
-
-  
-  if(modeValue == 'I' && noteKeysPressed[0] == 1){
-    pickInterval();
-    setOctave();
-    intervalHighCurrentNote = intervalHighBaseNote + octave;
-    intervalLowCurrentNote = intervalLowBaseNote + octave;
-    if(intervalHighCurrentNote != intervalHighLastNote || intervalLowCurrentNote != intervalLowLastNote){
-      sendMessage = 1;
+  updatePressure(); // Updates pressure and velocity values
+  if(velocity != lastVelocity){
+    if(velocity == 0){
+      sendMidi(noteONCh1, currentNote, 0);
+      sendMidi(noteONCh1, lastNote, 0);
+      sendMidi(noteONCh2, currentIntervalNote, 0);
+      sendMidi(noteONCh2, lastIntervalNote, 0);
     }
-  }  
+    else if(velocity != lastVelocity){
+      if(lastVelocity != 0){
+        sendMidi(continuousController, 2, velocity);       
+      }
+      else{
+        sendMidi(noteONCh1, currentNote, velocity);
+        if(intervalActive == 1){
+          sendMidi(noteONCh2, currentIntervalNote, velocity);
+        }
+      }
+    }
+  }
+
+  readBend(); // Updates the bend value from the neck sensor and maps it to 0 - 127.
+  if(bendVal != lastBend){
+    sendMidi(pitchBend, 0, bendVal);
+  }
   
-    
-  else if(modeValue == 'N' || noteKeysPressed[0] == 0){
+
+
+  if(modeValue == 'N'){
     pickNote();
     setOctave(); 
     currentNote = baseNote + octave; 
     if(currentNote != lastNote){ 
-      sendMessage = 1; 
+      sendMidi(noteONCh1, lastNote, 0);
+      sendMidi(noteONCh1, currentNote, velocity);
     }
   }
+  
+  else if(modeValue == 'I'){
+    if(intervalActive == 0){
+      pickNote();
+      setOctave(); 
+      currentNote = baseNote + octave;
+      if(lastIntervalActive == 1){
+        sendMidi(noteONCh2, lastIntervalNote, 0);
+        sendMidi(noteONCh2, currentIntervalNote, 0);
+        sendMidi(noteONCh1, lastNote, 0);
+        sendMidi(noteONCh1, currentNote, 0);
+      }
+      if(currentNote != lastNote){ 
+        sendMidi(noteONCh1, lastNote, 0);
+        sendMidi(noteONCh1, currentNote, velocity);
+      }
 
-
-  readBend(); // Updates the bend value from the neck sensor and maps it to 0 - 127.
-  if(bendVal != lastBend){
-    sendMessage = 1;
+    }
+    else if(intervalActive == 1){
+      pickInterval();
+      setOctave();
+      currentNote = intervalLowBaseNote + octave;
+      if(intervalHighPressed != 0){
+        currentIntervalNote = intervalHighBaseNote + octave;
+      }
+      else{
+        currentIntervalNote = currentNote;
+      }
+      
+      if(currentNote != lastNote){
+        sendMidi(noteONCh1,lastNote, 0);
+        sendMidi(noteONCh1, currentNote, velocity);
+      }
+      if(currentIntervalNote != lastIntervalNote){
+        sendMidi(noteONCh2,lastIntervalNote, 0);
+        sendMidi(noteONCh2,currentIntervalNote, velocity);
+      }
+    }
   }
+  
+
+
   // readBite();
   // if(biteVal != lastBite){
-  // sendMessage = 1;
+  //   sendMidi(modulationControl, 0, biteVal);
   // }
 
-//####################################################################
-//######################   MIDI MESSAGE SECTION:  ###################
 
-  if(sendMessage == 1){
-
-//Interval Midi Message section:
-    if(modeValue == 'I' && noteKeysPressed[0] == 1){
-      if(lastPressed[3] == 0){
-        sendMidi(noteON, currentNote, 0);
-        sendMidi(noteON, lastNote, 0);
-      }
-
-      if(intervalHighCurrentNote != intervalHighLastNote || intervalLowCurrentNote != intervalLowLastNote){
-  // Turn off old notes where needed:
-        if(intervalHighCurrentNote != intervalHighLastNote){
-          if(intervalHighLastNote != intervalLowCurrentNote){
-            sendMidi(noteON, intervalHighLastNote, 0);
-          }     
-          if(intervalHighPressed != 0){
-            sendMidi(noteON, intervalHighCurrentNote, velocity);
-          }
-        }
-        if(intervalLowCurrentNote != intervalLowLastNote){
-          if(intervalLowLastNote != intervalHighCurrentNote){
-            sendMidi(noteON, intervalLowLastNote, 0);
-          }
-          if(intervalLowPressed != 0){
-            sendMidi(noteON, intervalLowCurrentNote, velocity); 
-          }
-        }      
-      }
-     
-// Interval general Midi messages:
-      if(velocity == 0){
-        sendMidi(noteON, intervalHighCurrentNote, 0);
-        sendMidi(noteON, intervalHighLastNote, 0);
-        sendMidi(noteON, intervalLowCurrentNote, 0);
-        sendMidi(noteON, intervalLowLastNote, 0);
-      }
-
-      else if(velocity != lastVelocity){
-        if(lastVelocity != 0){
-          sendMidi(continuousController, 2, velocity);       
-        }
-        else if(lastVelocity == 0){
-          sendMidi(noteON, intervalHighCurrentNote, velocity);
-          sendMidi(noteON, intervalLowCurrentNote, velocity);
-        }
-      }
-
-    }
-    if(modeValue == 'I' && noteKeysPressed[0] == 0 && lastPressed[3] == 1){
-      sendMidi(noteON, intervalHighCurrentNote, 0);
-      sendMidi(noteON, intervalHighLastNote, 0);
-      sendMidi(noteON, intervalLowCurrentNote, 0);
-      sendMidi(noteON, intervalLowLastNote, 0);
-    }    
-//Interval Midi section END:
-
-
-// "Normal mode" Midi messages:
-    if(modeValue == 'N' || noteKeysPressed[0] == 0){
-      if(currentNote != lastNote){
-        sendMidi(noteON, currentNote, velocity);
-        sendMidi(noteON, lastNote, 0);
-      }
-      else if(velocity != lastVelocity){
-        if(velocity != 0 && lastVelocity == 0){
-          sendMidi(noteON, currentNote, velocity);
-        }
-        else{
-          sendMidi(continuousController, 2, velocity);
-        }
-      }
-      if(velocity == 0){
-        sendMidi(noteON, currentNote, 0);
-        sendMidi(noteON, lastNote, 0);
-      }
-    }
-
-// General Midi messages:    
-    if(bendVal != lastBend){
-      sendMidi(pitchBend, 0, bendVal);
-    }
-    // if(biteVal != lastBite){
-    // sendMidi(modulationControl, 0, biteVal);
-    // lastBite = biteVal;
-    // }
     
-    fsrBreathSaved = fsrBreathPressure;
-    lastVelocity = velocity;
-    lastNote = currentNote;
-    intervalHighLastNote = intervalHighCurrentNote;
-    intervalLowLastNote = intervalLowCurrentNote;
-    lastBend = bendVal;
+  fsrBreathSaved = fsrBreathPressure;
+  lastVelocity = velocity;
+  lastBend = bendVal;
+  lastNote = currentNote;
+  lastIntervalNote = currentIntervalNote;
+
+}
 
 //    MAIN DEBUG:
 //    if(sendMessage == 1){
@@ -683,9 +651,18 @@ void loop(){
 //      Serial.println(encoderOutput);
 //      delay(20);
 //    }
-    sendMessage = 0;
-  }
-} // End of main loop
+
+
+  /////////////////////////////////////////////////
+  //// Debug for "readKeys()" only:
+  // for (i = 0; i < NUMKEYS; i++){
+  // Serial.print(keysPressed[i]);
+  // }
+  // Serial.println();
+  //// End debug /////////////////////////////////
+
+
+ // End of main loop
 
 
 
@@ -823,17 +800,19 @@ void readKeys(){
   for (i = 0; i < NUMKEYS; i++){ // Call debounce for touch keys
     keysPressed[i] = debounce(keyPins[i], lastPressed[i], 2); // Original debounceTime = 8
   }
-  
+  lastIntervalActive = intervalActive;
+  intervalActive = keysPressed[3];
+// This is the "high D" key, used for turning interval mode on and off on the fly.
 }
 
 
 //#################################################################
 //#################################################################
 // MIDI-Message function:
-// sendMidi parameters for noteOn are: Command, midiNote, midiVelocity
+// sendMidi parameters for noteONCh1 are: Command, midiNote, midiVelocity
 // for pitchBend are: Command, lsbBend, msbBend
 void sendMidi(int command, int data1, int data2){
-  midiSerial.write(command);//send command (noteOn / pitchBend etc)
+  midiSerial.write(command);//send command (noteONCh1 / pitchBend etc)
   midiSerial.write(data1);//send data1 (pitch, lsbBend etc)
   midiSerial.write(data2);//send data2 (velocity, msbBend etc)
 }
@@ -894,20 +873,10 @@ void pickInterval(){
     bitWrite(intervalLowPressed, n, keysPressed[i]);
     n++;
   }
-  if(intervalHighPressed != 0){
-    intervalHighBaseNote = 47 + intervalOctDist + intervalHighPressed;
-  }
-  if(intervalLowPressed != 0){
-    intervalLowBaseNote = 47 + intervalLowPressed;// "0000" is used as an "empty", to turn off the note. 
-  }       //So "0001"(= decimal 1) means C (Midi note "59 + 1" = 60).  
-  if(intervalHighPressed == 0){
-    intervalHighBaseNote = intervalLowBaseNote;
-  }
-  if(intervalLowPressed == 0){
-    intervalLowBaseNote = intervalHighBaseNote;
-  }
-  noteKeysPressed[0] = keysPressed[3];
-// This is the "high D" key, used for turning interval mode on and off on the fly.
+  
+  intervalLowBaseNote = 47 + intervalLowPressed; 
+
+  intervalHighBaseNote = 47 + intervalOctDist + intervalHighPressed;
 
 }
 
@@ -1045,6 +1014,35 @@ void pickNote(){
       }
     }
   }
+  // Test for cNat alternative fingering:
+  if(correct == 0){
+    if(noteKeysPressed[0] == 0){
+      if(noteKeysPressed[1] == 1){
+        if(noteKeysPressed[2] == 0){
+          if(noteKeysPressed[3] == 0){
+//            if(noteKeysPressed[4] == 0){
+              if(noteKeysPressed[5] == 1){
+//                if(noteKeysPressed[6] == 0){
+//                  if(noteKeysPressed[7] == 0){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
+                            baseNote = 60;
+                            correct = 1;
+//                          }
+//                        }
+//                      }
+//                    }
+//                  }
+//                }
+              }
+//            }
+          }
+        }
+      }
+    }
+  }
   // Test for bNat:
   if(correct == 0){
     if(noteKeysPressed[0] == 0){
@@ -1052,22 +1050,22 @@ void pickNote(){
         if(noteKeysPressed[2] == 0){
           if(noteKeysPressed[3] == 0){
 //            if(noteKeysPressed[4] == 0){
-//              if(noteKeysPressed[5] == 0){
+              if(noteKeysPressed[5] == 0){
 //                if(noteKeysPressed[6] == 0){
                   if(noteKeysPressed[7] == 0){
                     if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
+//                      if(noteKeysPressed[9] == 0){
 //                        if(noteKeysPressed[10] == 0){
 //                          if(noteKeysPressed[11] == 0){
                             baseNote = 59;
                             correct = 1;
 //                          }
 //                        }
-                      }
+//                      }
                     }
                   }
 //                }
-//              }
+              }
 //            }
           }
         }
@@ -1083,20 +1081,50 @@ void pickNote(){
 //            if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 1){
 //                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
+//                  if(noteKeysPressed[7] == 0){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
 //                        if(noteKeysPressed[10] == 0){
 //                          if(noteKeysPressed[11] == 0){
                             baseNote = 58;
                             correct = 1;
 //                          }
 //                        }
-                      }
-                    }
-                  }
+//                      }
+//                    }
+//                  }
 //                }
               }
+//            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Test for bFlat alternative fingering:
+  if(correct == 0){
+    if(noteKeysPressed[0] == 0){
+      if(noteKeysPressed[1] == 1){
+        if(noteKeysPressed[2] == 0){
+          if(noteKeysPressed[3] == 0){
+//            if(noteKeysPressed[4] == 0){
+//              if(noteKeysPressed[5] == 0){
+//                if(noteKeysPressed[6] == 0){
+                  if(noteKeysPressed[7] == 1 || noteKeysPressed[8] == 1){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
+//                        if(noteKeysPressed[10] == 0){
+//                          if(noteKeysPressed[11] == 0){
+                            baseNote = 58;
+                            correct = 1;
+//                          }
+//                        }
+//                      }
+//                    }
+                  }
+//                }
+//              }
 //            }
           }
         }
@@ -1112,18 +1140,18 @@ void pickNote(){
 //            if(noteKeysPressed[4] == 0){
               if(noteKeysPressed[5] == 0){
 //                if(noteKeysPressed[6] == 0){
-                  if(noteKeysPressed[7] == 0){
-                    if(noteKeysPressed[8] == 0){
-                      if(noteKeysPressed[9] == 0){
+//                  if(noteKeysPressed[7] == 0){
+//                    if(noteKeysPressed[8] == 0){
+//                      if(noteKeysPressed[9] == 0){
 //                        if(noteKeysPressed[10] == 0){
 //                          if(noteKeysPressed[11] == 0){
                             baseNote = 57;
                             correct = 1;
 //                          }
 //                        }
-                      }
-                    }
-                  }
+//                      }
+//                    }
+//                  }
 //                }
               }
 //            }
@@ -1134,7 +1162,7 @@ void pickNote(){
   } 
   // Test for aFlat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1159,11 +1187,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for gNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1188,11 +1216,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for fSharp:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1217,11 +1245,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for fNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1246,11 +1274,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for eNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1275,11 +1303,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for eFlat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1304,11 +1332,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for dNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1333,11 +1361,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for lowCSharp:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1362,11 +1390,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for lowCNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1391,11 +1419,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for lowBNat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1420,11 +1448,11 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Test for lowBFlat:
   if(correct == 0){
-//    if(noteKeysPressed[0] == 0){
+    if(noteKeysPressed[0] == 0){
       if(noteKeysPressed[1] == 1){
         if(noteKeysPressed[2] == 1){
           if(noteKeysPressed[3] == 1){
@@ -1449,7 +1477,7 @@ void pickNote(){
           }
         }
       }
-//    }
+    }
   }
   // Serial.println("No note available...");
   // Serial.println();
@@ -2323,4 +2351,3 @@ void isort(int *a, int n){
     a[k + 1] = j;
   }
 }
-
