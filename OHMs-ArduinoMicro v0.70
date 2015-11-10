@@ -2,7 +2,7 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Teensy 3.1 - Main Code v0.75. 
+// Teensy 3.1 - Main Code v0.77
 // Copyright 2015, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -164,6 +164,10 @@ byte lastIntervalNote;
 byte intervalActive = 0;
 byte lastIntervalActive = 0;
 
+
+byte currentSustainNote;
+byte sustainActive = 0;
+byte lastSustainActive = 0;
 
 // BREATH VARIABLES:
 byte breathPin = A10; // Pin with the breath sensor on it
@@ -398,10 +402,16 @@ void loop(){
 //      xBeeMIDI(noteONCh1, lastNote, 0);
 //      xBeeMIDI(noteONCh2, currentIntervalNote, 0);
 //      xBeeMIDI(noteONCh2, lastIntervalNote, 0);
-      usbMIDI.sendNoteOn(currentNote, 0, 1);
       if(intervalActive == 1 || lastIntervalActive == 1){
         usbMIDI.sendNoteOn(currentIntervalLowNote, 0, 1);
         usbMIDI.sendNoteOn(currentIntervalHighNote, 0, 2);        
+      }
+      if(sustainActive == 1){
+        usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+        usbMIDI.sendNoteOn(currentNote, 0, 2);
+      }
+      else{
+        usbMIDI.sendNoteOn(currentNote, 0, 1);
       }
     }
     else{
@@ -457,16 +467,41 @@ void loop(){
         usbMIDI.sendNoteOn(currentIntervalLowNote, 0, 1);
         usbMIDI.sendNoteOn(currentIntervalHighNote, 0, 2);
       }
+      
+      if(sustainActive == 1){
+        if(lastSustainActive == 0){
+          currentSustainNote == currentNote;
+          usbMIDI.sendNoteOn(currentNote, velocity, 2);
+        }
+      }
+      else{
+        if(lastSustainActive == 1){
+          usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+          usbMIDI.sendNoteOn(currentNote, 0, 2);
+          usbMIDI.sendNoteOn(currentNote, velocity, 1);
+        }
+      }
+      
       if(newNote == 1){
+        if(sustainActive == 1){
+          usbMIDI.sendNoteOn(lastNote, 0, 2);
+          usbMIDI.sendNoteOn(currentNote, velocity, 2);
+        }
+        else{
 //          xBeeMIDI(noteONCh1, lastNote, 0);
 //          xBeeMIDI(noteONCh1, currentNote, velocity);
-        usbMIDI.sendNoteOn(lastNote, 0, 1);
-        usbMIDI.sendNoteOn(currentNote, velocity, 1);
+          usbMIDI.sendNoteOn(lastNote, 0, 1);
+          usbMIDI.sendNoteOn(currentNote, velocity, 1);
+        }
       }
     }
+    
     else if(intervalActive == 1){
       if(lastIntervalActive == 0){
         usbMIDI.sendNoteOn(currentNote, 0, 1);
+      }
+      if(lastSustainActive == 1){
+        usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
       }
       if(currentIntervalLowNote != lastIntervalLowNote){
 //          xBeeMIDI(noteONCh1,lastNote, 0);
@@ -480,7 +515,7 @@ void loop(){
         usbMIDI.sendNoteOn(lastIntervalHighNote, 0, 2);
         usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
       }
-    }  
+    }
   }
 
   while (usbMIDI.read());
@@ -918,6 +953,17 @@ void keyLogic(){
   else if(keysPressed[5] != 1){
     lastIntervalActive = intervalActive;
     intervalActive = 0;
+    
+    lastSustainActive = sustainActive;    
+    if(keysPressed[13] == 1){
+      sustainActive = 1;
+    }
+    else{
+      sustainActive = 0;
+    }
+    
+      
+    
 // Test for highEFlat:
     if(correct == 0){
       
@@ -1242,7 +1288,7 @@ void keyLogic(){
                 if(keysPressed[11] == 1){
 //                  if(keysPressed[12] == 0){
                     
-                    if(keysPressed[14] == 0){
+//                    if(keysPressed[14] == 0){
                       
                       if(keysPressed[15] == 0){
                         if(keysPressed[16] == 0){
@@ -1257,7 +1303,7 @@ void keyLogic(){
                         }
                       }
                       
-                    }
+//                    }
                     
 //                  }
                 }
@@ -1281,7 +1327,7 @@ void keyLogic(){
                 if(keysPressed[11] == 0){
 //                  if(keysPressed[12] == 0){
                     
-                    if(keysPressed[14] == 0){
+//                    if(keysPressed[14] == 0){
                       
                       if(keysPressed[15] == 0){
                         if(keysPressed[16] == 0){
@@ -1296,7 +1342,7 @@ void keyLogic(){
                         }
                       }
                       
-                    }
+//                    }
                     
 //                  }
                 }
@@ -1515,7 +1561,7 @@ void keyLogic(){
                 if(keysPressed[11] == 1){
                   if(keysPressed[12] == 0){
                     
-                    if(keysPressed[14] == 0){
+//                    if(keysPressed[14] == 0){
                       
                       if(keysPressed[15] == 1){
                         if(keysPressed[16] == 1){
@@ -1530,7 +1576,7 @@ void keyLogic(){
                         }
                       }
                       
-                    }
+//                    }
                     
                   }
                 }
@@ -1554,7 +1600,7 @@ void keyLogic(){
                 if(keysPressed[11] == 0){
                   if(keysPressed[12] == 0){
                     
-                    if(keysPressed[14] == 0){
+//                    if(keysPressed[14] == 0){
                       
                       if(keysPressed[15] == 1){
                         if(keysPressed[16] == 1){
@@ -1569,7 +1615,7 @@ void keyLogic(){
                         }
                       }
                       
-                    }
+//                    }
                     
                   }
                 }
