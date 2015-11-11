@@ -421,8 +421,8 @@ void loop(){
 //          xBeeMIDI(noteONCh1, currentNote, velocity);
         if(intervalActive == 0){
           if(sustainActive == 1){
-            usbMIDI.sendNoteOn(currentNote, velocity, 2);
             usbMIDI.sendNoteOn(currentSustainNote, velocity, 1);
+            usbMIDI.sendNoteOn(currentNote, velocity, 2);
           }
           else{
             usbMIDI.sendNoteOn(currentNote, velocity, 1);
@@ -476,7 +476,7 @@ void loop(){
       
       if(sustainActive == 1){
         if(lastSustainActive == 0){
-          currentSustainNote == currentNote;
+          currentSustainNote = currentNote;
           usbMIDI.sendNoteOn(currentNote, velocity, 2);
         }
       }
@@ -502,7 +502,7 @@ void loop(){
     
     else if(intervalActive == 1){
       if(lastIntervalActive == 0){
-        if(sustainActive == 1 || lastSustainActive == 1){
+        if(sustainActive == 1){
           usbMIDI.sendNoteOn(currentNote, 0, 2);
           usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
         }
@@ -969,13 +969,9 @@ void keyLogic(){
     intervalActive = 1;
     pickInterval();
   }
-      
-      
-      
   else if(keysPressed[5] != 1){
     lastIntervalActive = intervalActive;
     intervalActive = 0;
-      
     
 // Test for highEFlat:
     if(correct == 0){
