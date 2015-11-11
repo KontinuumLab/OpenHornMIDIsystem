@@ -161,13 +161,13 @@ byte lastIntervalLowNote;
 byte currentIntervalNote;
 byte lastIntervalNote;
 
-byte intervalActive = 0;
-byte lastIntervalActive = 0;
+boolean intervalActive = 0;
+boolean lastIntervalActive = 0;
 
 
 byte currentSustainNote;
-byte sustainActive = 0;
-byte lastSustainActive = 0;
+boolean sustainActive = 0;
+boolean lastSustainActive = 0;
 
 // BREATH VARIABLES:
 byte breathPin = A10; // Pin with the breath sensor on it
@@ -329,11 +329,11 @@ void loop(){
   
   encRead();
   if(encBtnPressed == 1){
-    Serial.println("Button pressed");
+//    Serial.println("Button pressed");
     uViewSerial.print('#');
   }
   if(encBtnReleased == 1){
-    Serial.println("Button Released");
+//    Serial.println("Button Released");
     uViewSerial.print('$');
   }
 //  }
@@ -406,32 +406,38 @@ void loop(){
         usbMIDI.sendNoteOn(currentIntervalLowNote, 0, 1);
         usbMIDI.sendNoteOn(currentIntervalHighNote, 0, 2);        
       }
-      if(sustainActive == 1){
-        usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
-        usbMIDI.sendNoteOn(currentNote, 0, 2);
+      else{ 
+        if(sustainActive == 1){
+          usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+          usbMIDI.sendNoteOn(currentNote, 0, 2);
+          }
+        else{
+          usbMIDI.sendNoteOn(currentNote, 0, 1);
+        }
       }
-      else{
-        usbMIDI.sendNoteOn(currentNote, 0, 1);
+    }
+    else if(lastVelocity == 0){
+      if(correct == 1){
+//          xBeeMIDI(noteONCh1, currentNote, velocity);
+        if(intervalActive == 0){
+          if(sustainActive == 1){
+            usbMIDI.sendNoteOn(currentNote, velocity, 2);
+            usbMIDI.sendNoteOn(currentSustainNote, velocity, 1);
+          }
+          else{
+            usbMIDI.sendNoteOn(currentNote, velocity, 1);
+          }
+        }
+        else{
+//            xBeeMIDI(noteONCh2, currentIntervalNote, velocity);
+          usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
+          usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+        }
       }
     }
     else{
-      if(lastVelocity == 0){
-        if(correct == 1){
-  //          xBeeMIDI(noteONCh1, currentNote, velocity);
-          if(intervalActive == 0){
-            usbMIDI.sendNoteOn(currentNote, velocity, 1);
-          }
-          else{
-  //            xBeeMIDI(noteONCh2, currentIntervalNote, velocity);
-            usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
-            usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
-          }
-        }
-      }
-      else{
 //        xBeeMIDI(continuousController, 2, velocity);
-        usbMIDI.sendControlChange(2, velocity, 1);
-      }
+      usbMIDI.sendControlChange(2, velocity, 1);
     }
   }
   
@@ -474,12 +480,10 @@ void loop(){
           usbMIDI.sendNoteOn(currentNote, velocity, 2);
         }
       }
-      else{
-        if(lastSustainActive == 1){
-          usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
-          usbMIDI.sendNoteOn(currentNote, 0, 2);
-          usbMIDI.sendNoteOn(currentNote, velocity, 1);
-        }
+      else if(lastSustainActive == 1){
+        usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+        usbMIDI.sendNoteOn(currentNote, 0, 2);
+        usbMIDI.sendNoteOn(currentNote, velocity, 1);
       }
       
       if(newNote == 1){
@@ -498,22 +502,29 @@ void loop(){
     
     else if(intervalActive == 1){
       if(lastIntervalActive == 0){
-        usbMIDI.sendNoteOn(currentNote, 0, 1);
-      }
-      if(lastSustainActive == 1){
-        usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
-      }
-      if(currentIntervalLowNote != lastIntervalLowNote){
-//          xBeeMIDI(noteONCh1,lastNote, 0);
-//          xBeeMIDI(noteONCh1, currentNote, velocity);
-        usbMIDI.sendNoteOn(lastIntervalLowNote, 0, 1);
+        if(sustainActive == 1 || lastSustainActive == 1){
+          usbMIDI.sendNoteOn(currentNote, 0, 2);
+          usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+        }
+        else{
+          usbMIDI.sendNoteOn(currentNote, 0, 1);
+        }
         usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
-      }
-      if(currentIntervalHighNote != lastIntervalHighNote){
-//          xBeeMIDI(noteONCh2,lastIntervalNote, 0);
-//          xBeeMIDI(noteONCh2,currentIntervalNote, velocity);
-        usbMIDI.sendNoteOn(lastIntervalHighNote, 0, 2);
         usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+      }
+      else{
+        if(currentIntervalLowNote != lastIntervalLowNote){
+  //          xBeeMIDI(noteONCh1,lastNote, 0);
+  //          xBeeMIDI(noteONCh1, currentNote, velocity);
+          usbMIDI.sendNoteOn(lastIntervalLowNote, 0, 1);
+          usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
+        }
+        if(currentIntervalHighNote != lastIntervalHighNote){
+  //          xBeeMIDI(noteONCh2,lastIntervalNote, 0);
+  //          xBeeMIDI(noteONCh2,currentIntervalNote, velocity);
+          usbMIDI.sendNoteOn(lastIntervalHighNote, 0, 2);
+          usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+        }
       }
     }
   }
@@ -943,25 +954,27 @@ void keyLogic(){
 
   lastNote = currentNote;
   setOctave();
-  
+    
+  lastSustainActive = sustainActive;    
+  if(keysPressed[13] == 1){
+    sustainActive = 1;
+  }
+  else{
+    sustainActive = 0;
+  }  
+ 
+ 
   if(keysPressed[5] == 1){
     lastIntervalActive = intervalActive;
     intervalActive = 1;
     pickInterval();
   }
       
+      
+      
   else if(keysPressed[5] != 1){
     lastIntervalActive = intervalActive;
     intervalActive = 0;
-    
-    lastSustainActive = sustainActive;    
-    if(keysPressed[13] == 1){
-      sustainActive = 1;
-    }
-    else{
-      sustainActive = 0;
-    }
-    
       
     
 // Test for highEFlat:
