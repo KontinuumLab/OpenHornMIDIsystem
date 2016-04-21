@@ -2,8 +2,8 @@
 //#####################################################
 //#####################################################
 // Open Horn Midi system / "OHMs"
-// Teensy 3.1 - Main Code v0.78
-// Copyright 2015, Jeppe Tofthøj Rasmussen
+// Teensy 3.1 - Main Code v0.82
+// Copyright 2016, Jeppe Tofthøj Rasmussen
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -149,25 +149,32 @@ byte lastNote;
 int octave = 0;      
 int lastOctave = 0;
 
-byte intervalLowPressed; //"bitwrite" variable
-byte intervalHighPressed; //"bitwrite" variable
+byte splitLowPressed; //"bitwrite" variable
+byte splitHighPressed; //"bitwrite" variable
 
 
-byte currentIntervalHighNote;
-byte duplicateIntervalHighNote;
-byte currentIntervalLowNote;
-byte lastIntervalHighNote;
-byte lastIntervalLowNote;
-byte currentIntervalNote;
-byte lastIntervalNote;
+byte currentSplitHighNote;
+byte duplicateSplitHighNote;
+byte currentSplitLowNote;
+byte lastSplitHighNote;
+byte lastSplitLowNote;
+byte currentSplitNote;
+byte lastSplitNote;
 
-boolean intervalActive = 0;
-boolean lastIntervalActive = 0;
+boolean splitActive = 0;
+boolean lastSplitActive = 0;
 
 
 byte currentSustainNote;
+byte lastSustainNote;
 boolean sustainActive = 0;
 boolean lastSustainActive = 0;
+
+byte sustainInterval;
+
+byte currentIntervalNote;
+boolean intervalActive = 0;
+boolean lastIntervalActive = 0;
 
 // BREATH VARIABLES:
 byte breathPin = A10; // Pin with the breath sensor on it
@@ -185,10 +192,12 @@ int breathBuffer = 10;
 int breathMin = 0;
 int breathMax = 1023;
 
-int breathArraySize = 10;
+int breathArraySize = 100;
 int breathArray[] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
 
 
 
@@ -321,7 +330,6 @@ void setup() {
 
 
 void loop(){
-  
 // BUTTON CHECK:
 //(Will be menu call)
 //  quickEncRead();
@@ -396,17 +404,20 @@ void loop(){
   
 
   updatePressure();
+  
   if(velocity != lastVelocity){
     if(velocity == 0){
 //      xBeeMIDI(noteONCh1, currentNote, 0);
 //      xBeeMIDI(noteONCh1, lastNote, 0);
-//      xBeeMIDI(noteONCh2, currentIntervalNote, 0);
-//      xBeeMIDI(noteONCh2, lastIntervalNote, 0);
-      if(intervalActive == 1 || lastIntervalActive == 1){
-        usbMIDI.sendNoteOn(currentIntervalLowNote, 0, 1);
-        usbMIDI.sendNoteOn(currentIntervalHighNote, 0, 2);        
+//      xBeeMIDI(noteONCh2, currentSplitNote, 0);
+//      xBeeMIDI(noteONCh2, lastSplitNote, 0);
+      if(splitActive == 1){
+//        sendMessage(note, currentSplitLowNote, 0, 1); // generic "send" function
+//        sendMessage(notercurrentSplitHighNote, 0, 2);
+        usbMIDI.sendNoteOn(currentSplitLowNote, 0, 1);
+        usbMIDI.sendNoteOn(currentSplitHighNote, 0, 2);        
       }
-      else{ 
+      else{
         if(sustainActive == 1){
           usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
           usbMIDI.sendNoteOn(currentNote, 0, 2);
@@ -417,9 +428,10 @@ void loop(){
       }
     }
     else if(lastVelocity == 0){
+      breathTimerStart = millis();
       if(correct == 1){
 //          xBeeMIDI(noteONCh1, currentNote, velocity);
-        if(intervalActive == 0){
+        if(splitActive == 0){
           if(sustainActive == 1){
             usbMIDI.sendNoteOn(currentSustainNote, velocity, 1);
             usbMIDI.sendNoteOn(currentNote, velocity, 2);
@@ -429,15 +441,19 @@ void loop(){
           }
         }
         else{
-//            xBeeMIDI(noteONCh2, currentIntervalNote, velocity);
-          usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
-          usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+//            xBeeMIDI(noteONCh2, currentSplitNote, velocity);
+          usbMIDI.sendNoteOn(currentSplitLowNote, velocity, 1);
+          usbMIDI.sendNoteOn(currentSplitHighNote, velocity, 2);
         }
       }
     }
     else{
 //        xBeeMIDI(continuousController, 2, velocity);
-      usbMIDI.sendControlChange(2, velocity, 1);
+      breathTimer = millis();
+      if(breathTimer - breathTimerStart > breathMessageDelay){
+        usbMIDI.sendControlChange(2, velocity, 1);
+        breathTimerStart = millis();
+      }
     }
   }
   
@@ -448,37 +464,44 @@ void loop(){
     usbMIDI.sendPitchBend(bend, 1);
   }
 
-  updateIMU();
-  if(newGX == 1){
-    usbMIDI.sendControlChange(12, GX, 1); // CC#12 = Effect Controller 1
-    newGX = 0;
-  }
-  if(newGY == 1){
-    usbMIDI.sendControlChange(1, GY, 1); // CC#1 = Modulation / Vibrato
-    newGY = 0;
-  }
-  if(newGZ == 1){
-    usbMIDI.sendControlChange(4, GZ, 1); // CC#4 = Foot controller / Aftertouch
-    newGZ = 0;
-  }
+//  updateIMU();
+//  if(newGX == 1){
+//    usbMIDI.sendControlChange(12, GX, 1); // CC#12 = Effect Controller 1
+//    newGX = 0;
+//  }
+//  if(newGY == 1){
+//    usbMIDI.sendControlChange(1, GY, 1); // CC#1 = Modulation / Vibrato
+//    newGY = 0;
+//  }
+//  if(newGZ == 1){
+//    usbMIDI.sendControlChange(4, GZ, 1); // CC#4 = Foot controller / Aftertouch
+//    newGZ = 0;
+//  }
   
-  readKeys();  // Accesses readKeys(), readKeyPins(), keyLogic() and pickInterval(), as needed
+  readKeys();  // Accesses readKeys(), readKeyPins(), keyLogic() and pickSplit(), as needed
   if(velocity != 0){
-    if(intervalActive == 0){
-      if(lastIntervalActive == 1){
-//          xBeeMIDI(noteONCh2, lastIntervalNote, 0);
-//          xBeeMIDI(noteONCh2, currentIntervalNote, 0);
+    if(splitActive == 0){
+      if(lastSplitActive == 1){
+//          xBeeMIDI(noteONCh2, lastSplitNote, 0);
+//          xBeeMIDI(noteONCh2, currentSplitNote, 0);
 //          xBeeMIDI(noteONCh1, lastNote, 0);
 //          xBeeMIDI(noteONCh1, currentNote, 0);
-        usbMIDI.sendNoteOn(currentIntervalLowNote, 0, 1);
-        usbMIDI.sendNoteOn(currentIntervalHighNote, 0, 2);
+        usbMIDI.sendNoteOn(currentSplitLowNote, 0, 1);
+        usbMIDI.sendNoteOn(currentSplitHighNote, 0, 2);
       }
       
-      if(sustainActive == 1){
+      if(sustainActive == 1 && intervalActive == 0){
         if(lastSustainActive == 0){
           currentSustainNote = currentNote;
           usbMIDI.sendNoteOn(currentNote, velocity, 2);
         }
+      }
+      else if(sustainActive == 1 && intervalActive == 1){
+        if(lastIntervalActive == 0){
+          sustainInterval = currentSustainNote - currentNote;
+        }
+        lastSustainNote = currentSustainNote;
+        currentSustainNote = currentNote + sustainInterval;
       }
       else if(lastSustainActive == 1){
         usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
@@ -490,6 +513,10 @@ void loop(){
         if(sustainActive == 1){
           usbMIDI.sendNoteOn(lastNote, 0, 2);
           usbMIDI.sendNoteOn(currentNote, velocity, 2);
+          if(intervalActive == 1){
+            usbMIDI.sendNoteOn(lastSustainNote, 0, 1);
+            usbMIDI.sendNoteOn(currentSustainNote, velocity, 1);
+          }         
         }
         else{
 //          xBeeMIDI(noteONCh1, lastNote, 0);
@@ -500,8 +527,8 @@ void loop(){
       }
     }
     
-    else if(intervalActive == 1){
-      if(lastIntervalActive == 0){
+    else if(splitActive == 1){
+      if(lastSplitActive == 0){
         if(sustainActive == 1){
           usbMIDI.sendNoteOn(currentNote, 0, 2);
           usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
@@ -509,25 +536,41 @@ void loop(){
         else{
           usbMIDI.sendNoteOn(currentNote, 0, 1);
         }
-        usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
-        usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+        usbMIDI.sendNoteOn(currentSplitLowNote, velocity, 1);
+        usbMIDI.sendNoteOn(currentSplitHighNote, velocity, 2);
       }
       else{
-        if(currentIntervalLowNote != lastIntervalLowNote){
+        if(currentSplitLowNote != lastSplitLowNote){
   //          xBeeMIDI(noteONCh1,lastNote, 0);
   //          xBeeMIDI(noteONCh1, currentNote, velocity);
-          usbMIDI.sendNoteOn(lastIntervalLowNote, 0, 1);
-          usbMIDI.sendNoteOn(currentIntervalLowNote, velocity, 1);
+          usbMIDI.sendNoteOn(lastSplitLowNote, 0, 1);
+          usbMIDI.sendNoteOn(currentSplitLowNote, velocity, 1);
         }
-        if(currentIntervalHighNote != lastIntervalHighNote){
-  //          xBeeMIDI(noteONCh2,lastIntervalNote, 0);
-  //          xBeeMIDI(noteONCh2,currentIntervalNote, velocity);
-          usbMIDI.sendNoteOn(lastIntervalHighNote, 0, 2);
-          usbMIDI.sendNoteOn(currentIntervalHighNote, velocity, 2);
+        if(currentSplitHighNote != lastSplitHighNote){
+  //          xBeeMIDI(noteONCh2,lastSplitNote, 0);
+  //          xBeeMIDI(noteONCh2,currentSplitNote, velocity);
+          usbMIDI.sendNoteOn(lastSplitHighNote, 0, 2);
+          usbMIDI.sendNoteOn(currentSplitHighNote, velocity, 2);
         }
       }
     }
   }
+  else{
+    if(sustainActive == 1 && intervalActive == 0){
+      if(lastSustainActive == 0){
+        currentSustainNote = currentNote;
+//        usbMIDI.sendNoteOn(currentNote, velocity, 2);
+      }
+    }
+    else if(sustainActive == 1 && intervalActive == 1){
+      if(lastIntervalActive == 0){
+        sustainInterval = currentSustainNote - currentNote;
+      }
+      lastSustainNote = currentSustainNote;
+      currentSustainNote = currentNote + sustainInterval;
+    }
+  }
+    
 
   while (usbMIDI.read());
 //  delay(10);
@@ -955,23 +998,30 @@ void keyLogic(){
   lastNote = currentNote;
   setOctave();
     
-  lastSustainActive = sustainActive;    
+  lastSustainActive = sustainActive;
+  lastIntervalActive = intervalActive;  
   if(keysPressed[13] == 1){
     sustainActive = 1;
+    if(keysPressed[5] == 0){
+      intervalActive = 0;
+    }
+    else if(keysPressed[5] == 1){
+      intervalActive = 1;
+    }
   }
   else{
     sustainActive = 0;
-  }  
- 
- 
-  if(keysPressed[5] == 1){
-    lastIntervalActive = intervalActive;
-    intervalActive = 1;
-    pickInterval();
-  }
-  else if(keysPressed[5] != 1){
-    lastIntervalActive = intervalActive;
     intervalActive = 0;
+  }
+ 
+ 
+  lastSplitActive = splitActive; 
+  if(keysPressed[5] == 1 && keysPressed [13] == 0){
+    splitActive = 1;
+    pickSplit();
+  }
+  else{
+    splitActive = 0;
     
 // Test for highEFlat:
     if(correct == 0){
@@ -1728,36 +1778,36 @@ void keyLogic(){
 //#################################################################
 //##################    PICK INTERVAL:    #########################
 
-void pickInterval(){
-  lastIntervalHighNote = currentIntervalHighNote;
-  lastIntervalLowNote = currentIntervalLowNote;
+void pickSplit(){
+  lastSplitHighNote = currentSplitHighNote;
+  lastSplitLowNote = currentSplitLowNote;
   
-  bitWrite(intervalHighPressed, 0, keysPressed[11]);
-  bitWrite(intervalHighPressed, 1, keysPressed[10]);
-  bitWrite(intervalHighPressed, 2, keysPressed[9]);
-  bitWrite(intervalHighPressed, 3, keysPressed[7]);
+  bitWrite(splitHighPressed, 0, keysPressed[11]);
+  bitWrite(splitHighPressed, 1, keysPressed[10]);
+  bitWrite(splitHighPressed, 2, keysPressed[9]);
+  bitWrite(splitHighPressed, 3, keysPressed[7]);
   byte n = 0;
   byte i;
   for(i = 18; i > 14; i--){
-    bitWrite(intervalLowPressed, n, keysPressed[i]);
+    bitWrite(splitLowPressed, n, keysPressed[i]);
     n++;
   }
   
-  if(intervalHighPressed != 0){
+  if(splitHighPressed != 0){
     correct = 1;
-    currentIntervalHighNote = intervalHighPressed + octave + 47;
-    if(intervalLowPressed != 0){
-      currentIntervalLowNote = intervalLowPressed + octave + 47; //(+ intervalOctaveDistance)
+    currentSplitHighNote = splitHighPressed + octave + 47;
+    if(splitLowPressed != 0){
+      currentSplitLowNote = splitLowPressed + octave + 47; //(+ splitOctaveDistance)
     }
     else{
-      currentIntervalLowNote = currentIntervalHighNote;
+      currentSplitLowNote = currentSplitHighNote;
     }
-  
-    if(correct == 1){
-      if(currentIntervalHighNote != lastIntervalHighNote || currentIntervalLowNote != lastIntervalLowNote){
-        newNote = 1;
-      }
-    }
+//  
+//    if(correct == 1){
+//      if(currentSplitHighNote != lastSplitHighNote || currentSplitLowNote != lastSplitLowNote){
+//        newNote = 1;
+//      }
+//    }
   }
 }
 
@@ -1766,9 +1816,6 @@ void pickInterval(){
 //#################    Octave Update Function:    #################
 void setOctave(){
   if     (keysPressed[1] == 0 && keysPressed[2] == 1 && keysPressed[3] == 1 && keysPressed[4] == 1){
-    octave = 60;
-  }
-  else if(keysPressed[1] == 0 && keysPressed[2] == 0 && keysPressed[3] == 0 && keysPressed[4] == 0){
     octave = 48;
   }
   else if(keysPressed[1] == 0 && keysPressed[2] == 0 && keysPressed[3] == 0 && keysPressed[4] == 1){
@@ -1786,15 +1833,18 @@ void setOctave(){
   else if(keysPressed[1] == 0 && keysPressed[2] == 1 && keysPressed[3] == 0 && keysPressed[4] == 0){
     octave = -12;
   }
-  else if(keysPressed[1] == 1 && keysPressed[2] == 1 && keysPressed[3] == 0 && keysPressed[4] == 0){ // All octave keys pressed
+  else if(keysPressed[1] == 1 && keysPressed[2] == 1 && keysPressed[3] == 0 && keysPressed[4] == 0){
     octave = -24;
   }
-  else if(keysPressed[1] == 1 && keysPressed[2] == 0 && keysPressed[3] == 0 && keysPressed[4] == 0){ // All octave keys pressed
+  else if(keysPressed[1] == 1 && keysPressed[2] == 0 && keysPressed[3] == 0 && keysPressed[4] == 0){
     octave = -36;
   }
-  else if(keysPressed[1] == 1 && keysPressed[2] == 1 && keysPressed[3] == 1 && keysPressed[4] == 0){ // All octave keys pressed
+  else if(keysPressed[1] == 1 && keysPressed[2] == 1 && keysPressed[3] == 1 && keysPressed[4] == 0){
     octave = -48;
   }
+//  else if(keysPressed[1] == 0 && keysPressed[2] == 0 && keysPressed[3] == 0 && keysPressed[4] == 0){
+//    octave = 48;
+//  }
 //  octave = octave + transposeValue; // Transpose operation from menu settings
 }
 
