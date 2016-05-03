@@ -1,0 +1,1519 @@
+
+
+//#####################################################
+//#####################################################
+// Open Horn Midi system / "OHMs"
+// Teensy 3.1 - "Pedalera" v18
+// Copyright 2016, Jeppe Tofthøj Rasmussen
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+
+
+//##############################################################################
+//####################### SEVEN SEGMENT VARIABLES ##############################
+
+#include "SevSeg.h"
+
+//Create an instance of the object.
+SevSeg myDisplay;
+
+//Create global variables
+unsigned long timer;
+int deciSecond = 0;
+
+// Strings to print
+char baseString[5];
+char topString[5];
+
+uint8_t printValue = 0;
+
+boolean topStringOn = 0;
+unsigned long topStringTimer;
+const int orgTopStringTimerConstant = 1000;
+int topStringTimerConstant = 1000;
+unsigned long nowTime;
+
+int dotPos = 0;
+
+boolean recDisplay = 0;
+boolean overDisplay = 0;
+
+//##############################################################################
+//####################### FSR READINGS / PINS, ETC #############################
+
+int calBtnPin = 16;
+
+//const int otherBtn = 17;
+
+int potPin1 = 16;
+int potPin2 = 17;
+
+int fsrPin1 = A11;
+int fsrPin2 = A12;
+int fsrPin3 = A13; 
+int fsrPin4 = A10;
+int fsrPin5 = 19;   
+int fsrPin6 = 18;
+
+//const int fsrPin4 = A13;
+
+boolean looperMode = 1;
+boolean layersMode = 0;
+boolean fxMode = 0;
+
+
+int fsr1Val;
+int fsr2Val;
+int fsr3Val;
+int fsr4Val;
+int fsr5Val;
+int fsr6Val;
+
+int fsrArraySize = 30;
+int fsrArray[30];
+
+int potArraySize = 100;
+int potArray[100];
+int pot2Array[100];
+boolean pot1Dir;
+boolean pot2Dir;
+boolean lastPot1Dir;
+boolean lastPot2Dir;
+
+
+
+//uint8_t lastPedal1Output;
+//uint8_t secLastPedal1Output;
+//uint8_t lastPedal2Output;
+//uint8_t secLastPedal2Output;
+
+uint8_t switchBuffer = 50;
+
+
+//Calibration variables:
+
+int fsr1Max = 970;
+int fsr2Max = 980;
+int fsr3Max = 970;
+int fsr4Max = 900;
+int fsr5Max = 750;
+int fsr6Max = 950;
+int fsr1Min = 848;
+int fsr2Min = 855;
+int fsr3Min = 875;
+int fsr4Min = 650;
+int fsr5Min = 650;
+int fsr6Min = 850;
+
+int pot2Min = 680;
+int pot2Max = 790;
+int pot1Min = 740;
+int pot1Max = 850;
+
+
+//########################################################################
+//############################## YOSHIMI CCs #############################
+
+uint8_t bankChange1 = 0;           // 0: Bank Change (user selectable and does *not* force a program change)
+uint8_t bankChange2 = 32;          // 32: Bank Change (user selectable and does *not* force a program change)
+uint8_t modWheelCC = 1;            // 1: Modulation Wheel
+uint8_t breathCC = 2;              // 2: Breath Control
+//uint8_t dataMSB = 6;               // 6: Data MSB
+uint8_t volumeCC = 7;              // 7: Volume
+uint8_t panningCC = 10;            // 10: Panning
+uint8_t expressionCC = 11;         // 11: Expression
+//uint8_t dataLSB = 38;              // 38: Data LSB
+uint8_t sustainCC = 64;            // 64: Sustain pedal
+uint8_t portamentoCC = 65;         // 65: Portamento
+uint8_t filterQCC = 71;            // 71: Filter Q (Sound Timbre)
+uint8_t filterCutoffCC = 74;       // 74: Filter Cutoff (Brightness)
+uint8_t bandWidthCC = 75;          // 75: BandWidth *
+uint8_t amplitudeCC = 76;          // 76: FM amplitude *
+uint8_t centerFreqCC = 77;         // 77: Resonance Center Frequency *
+uint8_t resonanceBandwidthCC = 78; // 78: Resonance Bandwith *
+uint8_t dataIncrement = 96;        // 96: Data Increment
+uint8_t dataDecrement = 97;        // 97: Data Decrement
+//uint8_t nrpnLSB = 98;              // 98: NRPN LSB
+//uint8_t nrpnMSB = 99;              // 99: NRPN MSB
+uint8_t allSoundsOff = 120;        // 120: All Sounds OFF
+uint8_t resetAll = 121;            // 121: Reset All Controllers
+uint8_t allNotesOFF = 123;         // 123: All Notes OFF
+
+
+// Yoshimi program change:
+uint8_t rootChange = 0;
+uint8_t bankChange = 32;
+//uint8_t programChange = 196; 
+//uint8_t programChange = 127;
+// ACTUALLY, USE: "usbMIDI.sendProgramChange(program, channel);"
+// so for example: usbMIDI.sendProgramChange(12, 1); 
+// means put patch 12 from current bank and root into channel 1
+
+
+// Looper CCs:
+uint8_t looperRec = 102;
+uint8_t looperOver = 103;
+uint8_t looperFeedback = 104;
+uint8_t looperMultiply = 105;
+uint8_t looperTrig = 106;
+uint8_t looperPause = 107;
+uint8_t looperRate = 108;
+
+
+//####################
+// LoopMode variables:
+boolean recOn = 0;
+boolean overOn = 0;
+boolean autoOverOn = 0;
+
+//boolean looperModePressed = 0;
+//boolean lastLooperModePressed = 0;
+
+boolean looperTrigPressed;
+boolean lastLooperTrigPressed;
+
+boolean looperRecPressed;
+boolean lastLooperRecPressed;
+
+boolean looperOverPressed;
+boolean lastLooperOverPressed;
+
+boolean looperPausePressed;
+boolean lastLooperPausePressed;
+
+boolean looperMultiplyPressed;
+boolean lastLooperMultiplyPressed;
+
+uint8_t looperFeedbackVal;
+uint8_t lastLooperFeedbackVal;
+
+uint8_t looperDuckingVal;
+uint8_t lastLooperDuckingVal;
+
+uint8_t looperRateVal;
+uint8_t lastLooperRateVal;
+
+
+
+//####################
+// LayersMode variables:
+
+boolean chan1PatchUpPressed = 0;
+boolean lastChan1PatchUpPressed = 0;
+
+boolean chan1PatchDownPressed = 0;
+boolean lastChan1PatchDownPressed = 0;
+
+boolean chan2PatchUpPressed = 0;
+boolean lastChan2PatchUpPressed = 0;
+
+boolean chan2PatchDownPressed = 0;
+boolean lastChan2PatchDownPressed = 0;
+
+boolean resetPatchesPressed = 0;
+boolean lastResetPatchesPressed = 0;
+
+uint8_t chan1Patch = 0;
+uint8_t chan2Patch = 0;
+
+uint8_t chan1Vol = 0;
+uint8_t lastChan1Vol = 0;
+
+uint8_t chan2Vol = 0;
+uint8_t lastChan2Vol = 0;
+
+
+
+
+boolean modePressed = 0;
+boolean lastModePressed = 0;
+uint8_t mode = 0;
+
+
+
+//######################################################################################
+//############################# FX MODE VARIABLES ######################################
+
+boolean fx1Pressed = 0;
+boolean lastFx1Pressed = 0;
+boolean fx2Pressed = 0;
+boolean lastFx2Pressed = 0;
+boolean fx3Pressed = 0;
+boolean lastFx3Pressed = 0;
+
+boolean fxChangePressed = 0;
+boolean lastFxChangePressed = 0;
+boolean fxPedalChangePressed = 0;
+boolean lastFxPedalChangePressed = 0;
+
+
+boolean fx1On = 0;
+boolean fx2On = 0;
+boolean fx3On = 0;
+
+uint8_t fxPedal1Val;
+uint8_t lastFxPedal1Val;
+uint8_t fxPedal2Val;
+uint8_t lastFxPedal2Val;
+uint8_t fxPedal2Send;
+
+
+
+
+// NRPNs:
+
+//NRPN coarse:
+const uint8_t NRPN_MSB = 99;
+const uint8_t NRPN_SysFX = 4;
+const uint8_t NRPN_InsFX = 8;
+
+//NRPN fine:
+const uint8_t NRPN_LSB = 98;
+uint8_t currentFxNum = 0; // 0, 1, 2
+
+//Data entry coarse:
+const uint8_t NRPN_DataMSB = 6;
+
+//Data entry fine:
+const uint8_t NRPN_DataLSB = 38;
+
+const uint8_t NRPN_FxType = 64;
+const uint8_t NRPN_DestPart = 32;
+
+const uint8_t NRPN_FxToMasterOut = 126;
+const uint8_t NRPN_FxOff = 127;
+
+//#######################################
+// EFFECT CONTROL CONSTANTS:
+
+//const uint8_t fxTypeOff = 0;
+//const uint8_t fxTypeReverb = 1; 
+//const uint8_t fxTypeEcho = 2;
+//const uint8_t fxTypeChorus = 3;
+//const uint8_t fxTypePhaser = 4;
+//const uint8_t fxTypeAlienWah = 5;
+//const uint8_t fxTypeDistortion = 6;
+//const uint8_t fxTypeEQ = 7;
+//const uint8_t fxTypeDynFilter = 8;
+
+//              [On/Off, fxType, pedal2Param]
+uint8_t fx1CtlArray[] = {0, 0, 1};
+
+uint8_t fx2CtlArray[] = {0, 0, 1};
+
+uint8_t fx3CtlArray[] = {0, 0, 1};
+  
+
+//REVERB:
+//1 reverbTimeCtl = 2;
+//2 reverbInitDelayCtl = 3;
+//3 reverbLowPassCtl = 7;
+//4 reverbHighPassCtl = 8;
+//5 reverbHFDampCtl = 9; // [64...127]
+//6 reverbTypeCtl = 10; //[0...1]
+//7 reverbRoomSizeCtl = 11;
+
+//ECHO:
+//1 echoDelayCtl = 2;
+//2 echoFeedbackCtl = 5;
+//3 echoHFDampCtl = 6;
+
+//CHORUS:
+//1 chorusLFOFreqCtl = 2;
+//2 chorusLFODepthCtl = 6;
+//3 chorusDelayCtl = 7;
+//4 chorusFeedbackCtl = 8;
+
+//PHASER:
+//1 phaserLFOFreqCtl = 2;
+//2 phaserLFODepthCtl = 6;
+//3 phaserFeedbackCtl = 7;
+//4 phaserPhaseCtl = 11;
+
+//ALIENWAH;
+//1 alienWahLFOFreqCtl = 2;
+//2 alienWahLFODepthCtl = 6;
+//3 alienWahFeedbackCtl = 7;
+//4 alienWahDelayCtl = 8; // [0...100]
+//5 alienWahPhaseCtl = 10;
+
+//DISTORTION;
+//1 distortDriveCtl = 3;
+//2 distortLvlCtl = 4;
+//3 distortTypeCtl = 5; // [0...11]
+//4 distortLowPassCtl = 7;
+//5 distortHighPassCtl = 8;
+
+//DYNFILTER;
+//1 dynFilterLFOFreq = 2;
+//2 dynFilterLFODepth = 6;
+//3 dynFilterAmplitudeCtl = 7;
+//4 dynFilterAmpChangeRate = 8;
+
+
+
+uint8_t fxOffParamArray[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Reverb control: 
+uint8_t reverbParamArray[] = {7, 2, 3, 7, 8, 9, 10, 11, 0, 0, 0, 0, 1, 2, 0};
+
+// Echo control:
+uint8_t echoParamArray[] = {3, 2, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Chorus control:
+uint8_t chorusParamArray[] = {4, 2, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Phaser control:
+uint8_t phaserParamArray[] = {4, 2, 6, 7, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// AlienWah control:                         x
+uint8_t alienWahParamArray[] = {5, 2, 6, 7, 8, 10, 0, 0, 0, 3, 0, 0, 0, 0, 0};
+
+// Distortion control:                   x        
+uint8_t distortParamArray[] = {5, 3, 4, 5, 7, 8, 0, 0, 4, 0, 0, 0, 0, 0, 0};
+
+// DynFilter
+uint8_t dynFilterParamArray[] = {4, 2, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+
+uint8_t* fxParamArrays [9];
+uint8_t* currentFx1ParamArray;
+uint8_t* currentFx2ParamArray;
+uint8_t* currentFx3ParamArray;
+
+uint8_t altRange0[] = {0, 127};
+uint8_t altRange1[] = {64, 127};
+uint8_t altRange2[] = {0, 1};
+uint8_t altRange3[] = {0, 100};
+uint8_t altRange4[] = {0, 11};
+
+uint8_t* altRanges[5];
+uint8_t* currentFx1Range;
+uint8_t* currentFx2Range;
+uint8_t* currentFx3Range;
+
+void setup(){
+  
+//############## SETUP DISPLAY ########################
+
+  int displayType = COMMON_ANODE; //Your display is either common cathode or common anode 
+  //This pinout is for a bubble dispaly
+  //Declare what pins are connected to the GND pins (cathodes)
+  int digit1 = 5;
+  int digit2 = 4;
+  int digit3 = 3;
+  int digit4 = 2;
+  //Declare what pins are connected to the segments (anodes)
+  int segA = 30;
+  int segB = 29;
+  int segC = 27;
+  int segD = 25;
+  int segE = 24;
+  int segF = 31;
+  int segG = 28;
+  int segDP= 26;
+  int numberOfDigits = 4; //Do you have a 1, 2 or 4 digit display?
+  myDisplay.Begin(displayType, numberOfDigits, digit1, digit2, digit3, digit4, segA, segB, segC, segD, segE, segF, segG, segDP);
+  myDisplay.SetBrightness(100); //Set the display to 100% brightness level
+  timer = millis();  
+
+
+//############## SETUP FX ########################  
+
+  fxParamArrays [0] = fxOffParamArray;
+  fxParamArrays [1] = reverbParamArray;
+  fxParamArrays [2] = echoParamArray;
+  fxParamArrays [3] = chorusParamArray;
+  fxParamArrays [4] = phaserParamArray;
+  fxParamArrays [5] = alienWahParamArray;
+  fxParamArrays [6] = distortParamArray;
+  
+  fxParamArrays [8] = dynFilterParamArray;
+  
+  altRanges[0] = altRange0;
+  altRanges[1] = altRange1;
+  altRanges[2] = altRange2;  
+  altRanges[3] = altRange3;
+  altRanges[4] = altRange4;
+//  Serial.begin(9600);
+//  pinMode(calBtnPin, INPUT);
+//  digitalWrite(calBtnPin, LOW);
+  snprintf(baseString, 5, "LOOP");
+
+  looperDuckingVal = readPot(potPin1, pot1Min, pot1Max);
+  looperFeedbackVal = readPot(potPin2, pot2Min, pot2Max);
+}
+
+
+void loop(){
+
+  
+//  // Strings to print
+//char baseString[5] = {'L','O','O','P'}
+//char topString[5];
+//
+//uint8_t printValue = 0;
+//
+//boolean topStringOn = 0;
+//unsigned long topStringTimer;
+
+
+
+//  layersLoop();
+//  
+//  
+//  
+//  quickReadCalBtn();
+//  if(calBtnRead == 1){
+//    readCalBtn();
+//    if(calBtnRead == 1){
+//      fsr1Max = 0;
+//      fsr2Max = 0;
+//      fsr3Max = 0;
+//      while(calBtnRead == 1){
+//        calibrateFSRs();
+//        calibratePots();
+//        readCalBtn();
+//      }
+//    }
+//  }
+
+// Read "Mode"-button:
+  lastModePressed = modePressed;
+  modePressed = readFsrAsBtn(fsrPin6, fsr6Min, fsr6Max);
+  if(lastModePressed == 0 && modePressed == 1){
+    if(mode == 0){
+      mode = 1;
+      snprintf(baseString, 5, "EFct");
+      topStringOn = 0;
+      fxPedal1Val = readPot(potPin1, pot1Min, pot1Max);
+      usbMIDI.sendControlChange(NRPN_MSB, NRPN_InsFX, 1);
+      usbMIDI.sendControlChange(NRPN_LSB, 0, 1); 
+    }
+    else if(mode == 1){
+      mode = 2;
+      snprintf(baseString, 5, "LAYr");
+      topStringOn = 0;
+      chan2Vol = readPot(potPin1, pot1Min, pot1Max);
+      chan1Vol = readPot(potPin2, pot2Min, pot2Max);
+    }
+    else if(mode == 2){
+      mode = 0;
+      snprintf(baseString, 5, "LOOP");
+      topStringOn = 0;
+      looperDuckingVal = readPot(potPin1, pot1Min, pot1Max);
+      looperFeedbackVal = readPot(potPin2, pot2Min, pot2Max);
+    }
+  }
+
+//Enter one of the three "Mode" loops
+  if(mode == 0){
+    looperLoop();
+  }
+  else if(mode == 1){
+    fxLoop();
+  }
+  else if(mode == 2){
+    layersLoop();
+  }
+  
+//  if(recDisplay == 1){
+//    snprintf(topString, 5, "reC ");
+//    topStringOn = 0;
+//  }
+//  
+//  if(overDisplay == 1){
+//    snprintf(topString, 5, "OUer ");
+//    topStringOn = 0;
+//  }
+  
+  
+  nowTime = millis();
+  if(nowTime - topStringTimer > topStringTimerConstant){
+    topStringOn = 0;
+    dotPos = 0;
+  }
+  if(topStringOn == 1){
+    myDisplay.DisplayString(topString, dotPos);
+  }
+  else{
+     myDisplay.DisplayString(baseString, 0);
+  }
+}
+
+
+//####################################################################################
+//####################################### LOOPER #####################################
+
+void looperLoop(){
+  lastLooperRecPressed = looperRecPressed;
+  looperRecPressed = readFsrAsBtn(fsrPin1, fsr1Min, fsr1Max);
+  if(looperRecPressed == 1 && lastLooperRecPressed == 0){
+//    if(recOn == 0){
+//      recOn = 1;
+      usbMIDI.sendControlChange(looperRec, 127, 3);
+//    }
+    topStringTimer = millis();
+    topStringOn = 1;
+    snprintf(topString, 5, "reC ");
+    dotPos = 0;
+  }
+//  else if(looperRecPressed == 0 && lastLooperRecPressed == 1){
+//    if(recOn == 1){
+//      recOn = 0;
+//      usbMIDI.sendControlChange(looperRec, 0, 3);
+//    }
+//  }
+  
+  lastLooperOverPressed = looperOverPressed;
+  looperOverPressed = readFsrAsBtn(fsrPin2, fsr2Min, fsr2Max);
+  if(looperOverPressed == 1 && lastLooperOverPressed == 0){
+    if(overOn == 0){
+      overOn = 1;
+      usbMIDI.sendControlChange(looperOver, 127, 3);
+    }
+    topStringTimer = millis();
+    topStringOn = 1;
+    snprintf(topString, 5, "OUer ");
+    dotPos = 0;
+  }
+  else if(looperOverPressed == 0 && lastLooperOverPressed == 1){
+    if(overOn == 1){
+      overOn = 0;
+      usbMIDI.sendControlChange(looperOver, 0, 3);
+    }
+  }
+
+  lastLooperTrigPressed = looperTrigPressed;
+  looperTrigPressed = readFsrAsBtn(fsrPin3, fsr3Min, fsr3Max);
+  if(looperTrigPressed == 1 && lastLooperTrigPressed == 0){
+    usbMIDI.sendControlChange(looperTrig, 127, 3);
+    topStringTimer = millis();
+    topStringOn = 1;
+    snprintf(topString, 5, "triG ");
+    dotPos = 0;
+  }
+
+  lastLooperPausePressed = looperPausePressed;
+  looperPausePressed = readFsrAsBtn(fsrPin4, fsr4Min, fsr4Max);
+  if(looperPausePressed == 1 && lastLooperPausePressed == 0){
+    usbMIDI.sendControlChange(looperPause, 127, 3);
+    topStringTimer = millis();
+    topStringOn = 1;
+    snprintf(topString, 5, "PAUS ");
+    dotPos = 0;
+  }
+  
+  
+  lastLooperMultiplyPressed = looperMultiplyPressed;
+  looperMultiplyPressed = readFsrAsBtn(fsrPin5, fsr5Min, fsr5Max);
+  if(looperMultiplyPressed == 1 && lastLooperMultiplyPressed == 0){
+    usbMIDI.sendControlChange(looperMultiply, 127, 3);
+    topStringTimer = millis();
+    topStringOn = 1;
+    snprintf(topString, 5, "NNUL ");
+    dotPos = 0;
+  }
+
+  lastLooperFeedbackVal = looperFeedbackVal;
+  looperFeedbackVal = readPot(potPin2, pot2Min, pot2Max);
+  lastPot2Dir = pot2Dir;
+  if(looperFeedbackVal != lastLooperFeedbackVal){
+    if(looperFeedbackVal < lastLooperFeedbackVal){
+      pot2Dir = 0;
+    }
+    else{
+      pot2Dir = 1;
+    }
+    if(pot2Dir == lastPot2Dir){
+      usbMIDI.sendControlChange(looperFeedback, looperFeedbackVal, 3);
+      topStringTimer = millis();
+      topStringOn = 1;
+      if(looperFeedbackVal < 10){
+        dotPos = 2;
+        snprintf(topString, 5, "Fb %d", looperFeedbackVal);
+      }
+      else if(looperFeedbackVal < 100){
+        dotPos = 2;
+        snprintf(topString, 5, "Fb%d", looperFeedbackVal);
+      }
+      else{
+        dotPos = 1;
+        snprintf(topString, 5, "F%d", looperFeedbackVal);
+      }
+    }
+  }
+  
+  lastLooperRateVal = looperRateVal;
+  looperRateVal = readPot(potPin1, pot1Min, pot1Max);
+  lastPot1Dir = pot1Dir;
+  if(looperRateVal != lastLooperRateVal){
+    if(looperRateVal < lastLooperRateVal){
+      pot1Dir = 0;
+    }
+    else{
+      pot1Dir = 1;
+    }
+    if(pot1Dir == lastPot1Dir){
+      usbMIDI.sendControlChange(looperRate, looperRateVal, 3);
+      topStringTimer = millis();
+      topStringOn = 1;
+      if(looperFeedbackVal < 10){
+        dotPos = 2;
+        snprintf(topString, 5, "rA %d", looperRateVal);
+      }
+      else if(looperFeedbackVal < 100){
+        dotPos = 2;
+        snprintf(topString, 5, "rA%d", looperRateVal);
+      }
+      else{
+        dotPos = 1;
+        snprintf(topString, 5, "r%d", looperRateVal);
+      }
+    }
+  }  
+}
+
+
+
+
+//################################################################################
+//############################## FX ##############################################
+
+void fxLoop(){
+  lastFx1Pressed = fx1Pressed;
+  fx1Pressed = readFsrAsBtn(fsrPin1, fsr1Min, fsr1Max);
+  if(fx1Pressed == 1 && lastFx1Pressed == 0){
+    if(currentFxNum != 0){
+      currentFxNum = 0;
+      usbMIDI.sendControlChange(NRPN_MSB, NRPN_InsFX, 1);
+      usbMIDI.sendControlChange(NRPN_LSB, currentFxNum, 1);
+      if(fx1CtlArray[0] == 1){
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+      }
+      else{
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+      }
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "EF 1");
+      dotPos = 0;
+    }
+    else{
+      if(fx1CtlArray[0] == 0){
+        fx1CtlArray[0] = 1;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "1out");
+        dotPos = 1;
+      }
+      else{
+        fx1CtlArray[0] = 0;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "1OFF");
+        dotPos = 1;
+      }
+    }
+  }
+  
+  lastFx2Pressed = fx2Pressed;
+  fx2Pressed = readFsrAsBtn(fsrPin2, fsr2Min, fsr2Max);
+  if(fx2Pressed == 1 && lastFx2Pressed == 0){
+    if(currentFxNum != 1){
+      currentFxNum = 1;
+      usbMIDI.sendControlChange(NRPN_MSB, NRPN_InsFX, 1);
+      usbMIDI.sendControlChange(NRPN_LSB, currentFxNum, 1);
+      if(fx2CtlArray[0] == 1){
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+      }
+      else{
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+      }
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "EF 2");
+      dotPos = 0;
+    }
+    else{
+      if(fx2CtlArray[0] == 0){
+        fx2CtlArray[0] = 1;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "2out");
+        dotPos = 1;
+      }
+      else{
+        fx2CtlArray[0] = 0;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "2OFF");
+        dotPos = 1;
+      }
+    }
+  }
+  
+  lastFx3Pressed = fx3Pressed;
+  fx3Pressed = readFsrAsBtn(fsrPin3, fsr3Min, fsr3Max);
+  if(fx3Pressed == 1 && lastFx3Pressed == 0){
+    if(currentFxNum != 2){
+      currentFxNum = 2;
+      usbMIDI.sendControlChange(NRPN_MSB, NRPN_InsFX, 1);
+      usbMIDI.sendControlChange(NRPN_LSB, currentFxNum, 1);
+      if(fx3CtlArray[0] == 1){
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+      }
+      else{
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+      }
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "EF 3");
+      dotPos = 0;
+    }
+    else{
+      if(fx3CtlArray[0] == 0){
+        fx3CtlArray[0] = 1;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxToMasterOut, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "3out");
+        dotPos = 1;
+      }
+      else{
+        fx3CtlArray[0] = 0;
+        usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_DestPart, 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, NRPN_FxOff, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        snprintf(topString, 5, "3OFF");
+        dotPos = 1;
+      }
+    }
+  }
+
+  lastFxPedal1Val = fxPedal1Val;
+  fxPedal1Val = readPot(potPin1, pot1Min, pot1Max);
+  lastPot1Dir = pot1Dir;
+  if(fxPedal1Val != lastFxPedal1Val){
+    if(fxPedal1Val < lastFxPedal1Val){
+      pot1Dir = 0;
+    }
+    else{
+      pot1Dir = 1;
+    }
+    if(pot1Dir == lastPot1Dir){
+      usbMIDI.sendControlChange(NRPN_DataMSB, 0, 1);
+      usbMIDI.sendControlChange(NRPN_DataLSB, fxPedal1Val, 1);
+      topStringTimer = millis();
+      topStringOn = 1;
+      dotPos = 1;
+      if(fxPedal1Val < 10){
+        snprintf(topString, 5, "L  %d", fxPedal1Val);
+      }
+      else if(fxPedal1Val < 100){
+        snprintf(topString, 5, "L %d", fxPedal1Val);
+      }
+      else{
+        snprintf(topString, 5, "L%d", fxPedal1Val);
+      }
+    }
+  }  
+
+  lastFxPedal2Val = fxPedal2Val;
+  fxPedal2Val = readPot(potPin2, pot2Min, pot2Max);
+  lastPot2Dir = pot2Dir;
+  if(fxPedal2Val != lastFxPedal2Val){
+    if(fxPedal2Val < lastFxPedal2Val){
+      pot2Dir = 0;
+    }
+    else{
+      pot2Dir = 1;
+    }
+    if(pot2Dir == lastPot2Dir){
+      byte tempVal;
+      
+      if(currentFxNum == 0){
+        tempVal = map(fxPedal2Val, 0, 127, currentFx1Range[0], currentFx1Range[1]);
+        usbMIDI.sendControlChange(NRPN_DataMSB, currentFx1ParamArray[fx1CtlArray[2]], 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, tempVal, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        if(tempVal < 10){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d %d", fx1CtlArray[2], tempVal);
+        }
+        else if(tempVal < 100){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d%d", fx1CtlArray[2], tempVal);
+        }
+        else{
+          snprintf(topString, 5, "%d%d", fx1CtlArray[2], tempVal);
+          dotPos = 1;
+        }
+      }
+      else if(currentFxNum == 1){
+        tempVal = map(fxPedal2Val, 0, 127, currentFx2Range[0], currentFx2Range[1]);
+        usbMIDI.sendControlChange(NRPN_DataMSB, currentFx2ParamArray[fx2CtlArray[2]], 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, tempVal, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        if(tempVal < 10){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d %d", fx2CtlArray[2], tempVal);
+        }
+        else if(tempVal < 100){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d%d", fx2CtlArray[2], tempVal);
+        }
+        else{
+          snprintf(topString, 5, "%d%d", fx2CtlArray[2], tempVal);
+          dotPos = 1;
+        }
+      }
+      if(currentFxNum == 2){
+        tempVal = map(fxPedal2Val, 0, 127, currentFx3Range[0], currentFx3Range[1]);
+        usbMIDI.sendControlChange(NRPN_DataMSB, currentFx3ParamArray[fx3CtlArray[2]], 1);
+        usbMIDI.sendControlChange(NRPN_DataLSB, tempVal, 1);
+        topStringTimer = millis();
+        topStringOn = 1;
+        if(tempVal < 10){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d %d", fx3CtlArray[2], tempVal);
+        }
+        else if(tempVal < 100){
+          dotPos = 2;
+          snprintf(topString, 5, "P%d%d", fx3CtlArray[2], tempVal);
+        }
+        else{
+          snprintf(topString, 5, "%d%d", fx3CtlArray[2], tempVal);
+          dotPos = 1;
+        }
+      }
+    }
+  }
+  
+  
+  lastFxChangePressed = fxChangePressed;
+  fxChangePressed = readFsrAsBtn(fsrPin4, fsr4Min, fsr4Max);
+  if(fxChangePressed == 1 && lastFxChangePressed == 0){
+    int i;
+    uint8_t tempFxType;
+    uint8_t placeHolderFxType;
+    
+    if(currentFxNum == 0){
+      tempFxType = fx1CtlArray[1];
+      tempFxType ++;
+      placeHolderFxType = tempFxType;
+      if(placeHolderFxType > 7){
+        placeHolderFxType = 0;
+      }
+      if(tempFxType == 7){
+        tempFxType = 8;
+      }
+      if(tempFxType > 8){
+        tempFxType = 0;
+      }
+      fx1CtlArray[1] = tempFxType;
+      currentFx1ParamArray = fxParamArrays[tempFxType];
+      fx1CtlArray[2] = 1;
+      usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_FxType, 1);
+      usbMIDI.sendControlChange(NRPN_DataLSB, fx1CtlArray[1], 1); 
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "E1 %d", placeHolderFxType);
+      dotPos = 2;
+    }
+    else if(currentFxNum == 1){
+      tempFxType = fx2CtlArray[1];
+      tempFxType ++;
+      placeHolderFxType = tempFxType;
+      if(placeHolderFxType > 7){
+        placeHolderFxType = 0;
+      }
+      if(tempFxType == 7){
+        tempFxType = 8;
+      }
+      if(tempFxType > 8){
+        tempFxType = 0;
+      }
+      fx2CtlArray[1] = tempFxType;
+      currentFx2ParamArray = fxParamArrays[tempFxType];
+      fx2CtlArray[2] = 1;
+      usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_FxType, 1);
+      usbMIDI.sendControlChange(NRPN_DataLSB, fx2CtlArray[1], 1);
+      topStringTimer = millis(); 
+      topStringOn = 1;
+      snprintf(topString, 5, "E2 %d", placeHolderFxType);
+      dotPos = 2;
+    }
+    else if(currentFxNum == 2){
+      tempFxType = fx3CtlArray[1];
+      tempFxType ++;
+      placeHolderFxType = tempFxType;
+      if(placeHolderFxType > 7){
+        placeHolderFxType = 0;
+      }
+      if(tempFxType == 7){
+        tempFxType = 8;
+      }
+      if(tempFxType > 8){
+        tempFxType = 0;
+      }
+      fx3CtlArray[1] = tempFxType;
+      currentFx3ParamArray = fxParamArrays[tempFxType];
+      fx3CtlArray[2] = 1;
+      usbMIDI.sendControlChange(NRPN_DataMSB, NRPN_FxType, 1);
+      usbMIDI.sendControlChange(NRPN_DataLSB, fx3CtlArray[1], 1);
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "E3 %d", placeHolderFxType);
+      dotPos = 2;
+    }
+  }
+  
+  
+  
+  
+
+  lastFxPedalChangePressed = fxPedalChangePressed;
+  fxPedalChangePressed = readFsrAsBtn(fsrPin5, fsr5Min, fsr5Max);
+  if(fxPedalChangePressed == 1 && lastFxPedalChangePressed == 0){
+    uint8_t tempFxParam;
+    if(currentFxNum == 0){
+      tempFxParam = fx1CtlArray[2];
+      tempFxParam ++;
+      if(tempFxParam > currentFx1ParamArray[0]){
+        tempFxParam = 1;
+      }
+      fx1CtlArray[2] = tempFxParam;
+      currentFx1Range = altRanges[currentFx1ParamArray[fx1CtlArray[2] + currentFx1ParamArray[0]]];
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "PAr%d", fx1CtlArray[2]);
+      dotPos = 4;
+    }
+    else if(currentFxNum == 1){
+      tempFxParam = fx2CtlArray[2];
+      tempFxParam ++;
+      if(tempFxParam > currentFx2ParamArray[0]){
+        tempFxParam = 1;
+      }
+      fx2CtlArray[2] = tempFxParam;
+      currentFx2Range = altRanges[currentFx2ParamArray[fx2CtlArray[2] + currentFx2ParamArray[0]]];
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "PAr%d", fx2CtlArray[2]);
+      dotPos = 4;
+    }
+    else if(currentFxNum == 2){
+      tempFxParam = fx3CtlArray[2];
+      tempFxParam ++;
+      if(tempFxParam > currentFx3ParamArray[0]){
+        tempFxParam = 1;
+      }
+      fx3CtlArray[2] = tempFxParam;
+      currentFx3Range = altRanges[currentFx3ParamArray[fx3CtlArray[2] + currentFx3ParamArray[0]]];
+      topStringTimer = millis();
+      topStringOn = 1;
+      snprintf(topString, 5, "PAr%d", fx3CtlArray[2]);
+      dotPos = 4;
+    }
+  }
+
+
+//  uint8_t paramPlace;
+//
+//  if(currentFxNum == 0 && fx1On == 1){
+//    paramPlace = fx1CtlArray[2];
+//    fxPedalsLoop(currentFxNum, fx1CtlArray, fxParamArrays[paramPlace]);
+//  }
+//  else if(currentFxNum == 1 && fx2On == 1){
+//    paramPlace = fx2CtlArray[2];
+//    fxPedalsLoop(currentFxNum, fx2CtlArray, fxParamArrays[paramPlace]);
+//  } 
+//  else if(currentFxNum == 2 && fx3On == 1){
+//    paramPlace = fx3CtlArray[2];
+//    fxPedalsLoop(currentFxNum, fx3CtlArray, fxParamArrays[paramPlace]);
+//  }  
+}
+
+
+
+//void fxPedalsLoop(uint8_t fxNum, uint8_t *ctlArray, uint8_t *paramArray){
+//  
+//  lastFxPedal1Val = fxPedal1Val;
+//  fxPedal1Val = readPot(potPin1, pot1Min, pot1Max);
+//  if(fxPedal1Val != lastFxPedal1Val){
+//    usbMIDI.sendControlChange(NRPN_DataMSB, 0, 1);
+//    usbMIDI.sendControlChange(NRPN_DataLSB, fxPedal1Val, 1);
+//  }
+//  
+////  [On/Off, fxType, pedal2Param]
+//
+//  lastFxPedal2Val = fxPedal2Val;
+//  fxPedal2Val = readPot(potPin2, pot2Min, pot2Max);
+//  if(fxPedal2Val != lastFxPedal2Val){
+//   
+//    usbMIDI.sendControlChange(NRPN_DataMSB, 0, 1);
+//    usbMIDI.sendControlChange(NRPN_DataLSB, fxPedal2Send, 1);
+//  }  
+// 
+//}
+
+//##################################################################################
+//##################################### LAYERS #####################################
+
+void layersLoop(){
+  
+  lastChan1PatchUpPressed = chan1PatchUpPressed;
+  chan1PatchUpPressed = readFsrAsBtn(fsrPin1, fsr1Min, fsr1Max);
+  if(chan1PatchUpPressed == 1 && lastChan1PatchUpPressed == 0){
+    chan1Patch ++;
+    if(chan1Patch > 127){
+      chan1Patch = 0;
+    }
+    usbMIDI.sendProgramChange(chan1Patch, 1);
+    topStringTimer = millis();
+    topStringOn = 1;
+    dotPos = 1;
+    if(chan1Patch < 10){
+      snprintf(topString, 5, "1  %d", chan1Patch);
+    }
+    else if(chan1Patch < 100){
+      snprintf(topString, 5, "1 %d", chan1Patch);
+    }
+    else{
+      snprintf(topString, 5, "1%d", chan1Patch);
+    }
+  }
+  
+  lastChan2PatchUpPressed = chan2PatchUpPressed;
+  chan2PatchUpPressed = readFsrAsBtn(fsrPin2, fsr2Min, fsr2Max);
+  if(chan2PatchUpPressed == 1 && lastChan2PatchUpPressed == 0){
+    chan2Patch ++;
+    if(chan2Patch > 127){
+      chan2Patch = 0;
+    }
+    usbMIDI.sendProgramChange(chan2Patch, 2);
+    topStringTimer = millis();
+    topStringOn = 1;
+    dotPos = 1;
+    if(chan2Patch < 10){
+      snprintf(topString, 5, "2  %d", chan2Patch);
+    }
+    else if(chan2Patch < 100){
+      snprintf(topString, 5, "2 %d", chan2Patch);
+    }
+    else{
+      snprintf(topString, 5, "2%d", chan2Patch);
+    }
+  }
+
+
+  lastResetPatchesPressed = resetPatchesPressed;
+  resetPatchesPressed = readFsrAsBtn(fsrPin3, fsr3Min, fsr3Max);
+  if(resetPatchesPressed == 1 && lastResetPatchesPressed == 0){
+    chan1Patch = 0;
+    chan2Patch = 0;
+    usbMIDI.sendProgramChange(chan1Patch, 1);
+    usbMIDI.sendProgramChange(chan2Patch, 2);
+    topStringTimer = millis();
+    topStringOn = 1;
+    dotPos = 0;
+    snprintf(topString, 5, "rSet");
+  }
+
+  lastChan1PatchDownPressed = chan1PatchDownPressed;
+  chan1PatchDownPressed = readFsrAsBtn(fsrPin4, fsr4Min, fsr4Max);
+  if(chan1PatchDownPressed == 1 && lastChan1PatchDownPressed == 0){
+    chan1Patch --;
+    if(chan1Patch > 127){
+      chan1Patch = 127;
+    }
+    usbMIDI.sendProgramChange(chan1Patch, 1);
+    topStringTimer = millis();
+    topStringOn = 1;
+    dotPos = 1;
+    if(chan1Patch < 10){
+      snprintf(topString, 5, "1  %d", chan1Patch);
+    }
+    else if(chan1Patch < 100){
+      snprintf(topString, 5, "1 %d", chan1Patch);
+    }
+    else{
+      snprintf(topString, 5, "1%d", chan1Patch);
+    }
+  }
+  
+  lastChan2PatchDownPressed = chan2PatchDownPressed;
+  chan2PatchDownPressed = readFsrAsBtn(fsrPin5, fsr5Min, fsr5Max);
+  if(chan2PatchDownPressed == 1 && lastChan2PatchDownPressed == 0){
+    chan2Patch --;
+    if(chan2Patch > 127){
+      chan2Patch = 127;
+    }
+    usbMIDI.sendProgramChange(chan2Patch, 2);
+    topStringTimer = millis();
+    topStringOn = 1;
+    dotPos = 1;
+    if(chan2Patch < 10){
+      snprintf(topString, 5, "2  %d", chan2Patch);
+    }
+    else if(chan2Patch < 100){
+      snprintf(topString, 5, "2 %d", chan2Patch);
+    }
+    else{
+      snprintf(topString, 5, "2%d", chan2Patch);
+    }
+  }
+
+  
+  
+//  lastBothPatchDownPressed = bothPatchDownPressed;
+//  bothPatchDownPressed = readFsrAsBtn(fsrPin6, fsr6Min, fsr6Max);
+//  if(bothPatchDownPressed == 1 && lastBothPatchDownPressed == 0){
+//    chan1Patch --;
+//    chan2Patch --;
+//    if(chan1Patch < 0){
+//      chan1Patch = 127;
+//    }
+//    if(chan2Patch < 0){
+//      chan2Patch = 127;
+//    }
+//    usbMIDI.sendProgramChange(chan1Patch, 1);
+//    usbMIDI.sendProgramChange(chan2Patch, 2);
+//  }
+
+  lastChan1Vol = chan1Vol;
+  chan1Vol = readPot(potPin2, pot2Min, pot2Max);
+  lastPot2Dir = pot2Dir;
+  if(chan1Vol != lastChan1Vol){
+    if(chan1Vol < lastChan1Vol){
+      pot2Dir = 0;
+    }
+    else{
+      pot2Dir = 1;
+    }
+    if(pot2Dir == lastPot2Dir){
+      usbMIDI.sendControlChange(volumeCC, chan1Vol, 1);
+      topStringTimer = millis();
+      topStringOn = 1;
+      dotPos = 1;
+      if(chan1Vol < 10){
+        snprintf(topString, 5, "1  %d", chan1Vol);
+      }
+      else if(chan1Vol < 100){
+        snprintf(topString, 5, "1 %d", chan1Vol);
+      }
+      else{
+        snprintf(topString, 5, "1%d", chan1Vol);
+      }
+    }
+  }
+    
+  lastChan2Vol = chan2Vol;
+  chan2Vol = readPot(potPin1, pot1Min, pot1Max);
+  lastPot1Dir = pot1Dir;
+  if(chan2Vol != lastChan2Vol){
+    if(chan2Vol < lastChan2Vol){
+      pot1Dir = 0;
+    }
+    else{
+      pot1Dir = 1;
+    }
+    if(pot1Dir == lastPot1Dir){
+      usbMIDI.sendControlChange(volumeCC, chan2Vol, 2);
+      topStringTimer = millis();
+      topStringOn = 1;
+      dotPos = 1;
+      if(chan2Vol < 10){
+        snprintf(topString, 5, "2  %d", chan2Vol);
+      }
+      else if(chan2Vol < 100){
+        snprintf(topString, 5, "2 %d", chan2Vol);
+      }
+      else{
+        snprintf(topString, 5, "2%d", chan2Vol);
+      }
+    }
+  }
+}
+
+
+
+
+boolean readFsrAsBtn(int pin, int minLimit, int maxLimit){
+  uint8_t rawReading1 = readFsr(pin, minLimit, maxLimit);
+    if(rawReading1 > switchBuffer){
+    return(1);
+  }
+  
+  else{
+    return(0);
+  }
+}
+
+
+
+
+uint8_t readFsr(int pin, int minLimit, int maxLimit){
+  int i;
+  int temp;
+  int unMapped;
+  int mapped;
+  uint8_t final;
+  for(i = 0; i < fsrArraySize; i++){
+    temp = analogRead(pin);
+    fsrArray[i] = temp;
+  }
+  isort(fsrArray,fsrArraySize);
+  unMapped = fsrArray[fsrArraySize / 2];
+  if(unMapped > maxLimit){
+    final = 127;
+  }
+  else if(unMapped < minLimit){
+    final = 0;
+  }
+  else{ 
+    final = map(unMapped, minLimit, maxLimit, 0, 127);
+  }
+//  delay(100);
+  return final;
+}
+
+// ###################################################################################
+// ######################### OLD READ_POT FUNCTION ###################################
+
+uint8_t readPot(int pin, int minLimit, int maxLimit){
+  int i;
+  int temp = 0;
+  int unMapped;
+  uint8_t mapped;
+  for(i = 0; i < potArraySize; i++){
+    temp = analogRead(pin);
+    potArray[i] = temp;
+  }
+  isort(potArray, potArraySize);
+  unMapped = potArray[potArraySize / 2];
+  if(unMapped < minLimit){
+    return(0);
+  }
+  else if(unMapped > maxLimit){
+    return(127);
+  }
+  else{
+    mapped = map(unMapped, minLimit, maxLimit, 0, 127);
+    return(mapped);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+// ###################################################################################
+// ######################### NEW READ_POT FUNCTION ###################################
+//
+//uint8_t readPot(int pin, int minLimit, int maxLimit){
+//  int i;
+//  int j;
+//  int k;
+//  int temp = 0;
+//  int unMapped;
+//  uint8_t mapped;
+//  uint8_t final;
+//  for(j = 0; j < potArraySize; j++){
+//    for(i = 0; i < potArraySize; i++){
+//      temp = analogRead(pin);
+//      potArray[i] = temp;
+//    }
+//    isort(potArray, potArraySize);
+//    unMapped = potArray[potArraySize / 2];
+//    if(unMapped < minLimit){
+//      mapped = 0;
+//    }
+//    else if(unMapped > maxLimit){
+//      mapped = 127;
+//    }
+//    else{
+//      mapped = map(unMapped, minLimit, maxLimit, 0, 127);
+//    }
+//    pot2Array[j] = mapped;
+//  }
+//  uint16_t addUp = 0;
+//  for(k = 0; k < potArraySize; k++){
+//    addUp = addUp + pot2Array[k];
+//  }
+//  final = addUp / potArraySize;
+//  
+
+//  
+//  if(pin == potPin1){
+//    secLastPedal1Output = lastPedal1Output;
+//    lastPedal1Output = pedal1Output;
+//    pedal1Output = final;
+//    if(lastPedal1Output < secLastPedal1Output && pedal1Output < lastPedal1Output){
+//      return(pedal1OutPut);
+//    }
+//    else if(lastPedal1Output > secLastPedal1Output && pedal1Output > lastPedal1Output){
+//      return(pedal1OutPut);
+//    }
+//    else if(lastPedal1Output == secLastPedal1Output){
+//      if(pedal1Output > lastPedal1Output){
+//  }
+//  else if(pin == potPin2){
+//    secLastPedal2Output = lastPedal2Output;
+//    lastPedal2Output = pedal2Output;
+//    pedal2Output = final;    
+//  }
+//
+//  
+//  return(final);
+//}
+
+
+
+void calibrateFSRs(){
+  int readVal;
+  readVal = analogRead(fsrPin1) - 10;
+  if(readVal > fsr1Max){
+    fsr1Max = readVal;
+    fsr1Min = fsr1Max - 127;
+  }
+  readVal = analogRead(fsrPin2) - 10;
+  if(readVal > fsr2Max){
+    fsr2Max = readVal;
+    fsr2Min = fsr2Max - 127;
+  }
+  readVal = analogRead(fsrPin3) - 10;
+  if(readVal > fsr3Max){
+    fsr3Max = readVal;
+    fsr3Min = fsr3Max - 127;
+  }
+}
+
+void calibratePots(){
+  int readVal = analogRead(potPin1);
+  if(readVal < pot1Min){
+    pot1Min = readVal + 3;
+  }
+  else if(readVal > pot1Max){
+    pot1Max = readVal - 3;
+  }
+  readVal = analogRead(potPin2);
+  if(readVal < pot2Min){
+    pot2Min = readVal + 3;
+  }
+  else if(readVal > pot2Max){
+    pot2Max = readVal - 3;
+  }
+}
+
+
+//void quickReadCalBtn(){
+//  calBtnRead = digitalRead(calBtnPin);
+//} 
+//
+//void readCalBtn(){
+//  calBtnReadLast = calBtnRead; 
+//  calBtnRead = debounce(calBtnPin, calBtnReadLast, 5);
+//} 
+
+
+//#################################################################
+//#################################################################
+// DEBOUNCE:
+// Debounce function for buttons and keys
+boolean debounce(uint8_t pin, boolean last, uint8_t debounceTime){
+  boolean current = digitalRead(pin);
+  if(last != current){
+    delay(debounceTime);
+    current = digitalRead(pin);
+  }
+  return(current);
+}
+
+
+//###################################################################
+//###################################################################
+// SORT FUNCTION FOR THE MEDIAN FILTER:
+void isort(int *a, int n){
+  // *a is an array pointer, n is the array size
+  for (int i = 1; i < n; ++i){
+    int j = a[i];
+    int k;
+    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
+    {
+      a[k + 1] = a[k];
+    }
+    a[k + 1] = j;
+  }
+}
+
+
+    
+    
+    
+    //AUTO OVER Section:
+    
+//    lastLooperFsr1Pressed = looperFsr1Pressed;
+//    looperFsr1Pressed = readFsrAsBtn(fsrPin1, fsr1Min, fsr1Max);
+//    if(looperFsr1Pressed == 1 && lastLooperFsr1Pressed == 0){
+//      if(autoOverOn == 0){
+//        autoOverOn = 1;
+//        usbMIDI.sendControlChange(looperAutoOver, 127, 3);
+////        delay(30);
+//      }
+//    }
+//    else if(looperFsr1Pressed == 0 && lastLooperFsr1Pressed == 1){
+//      if(autoOverOn == 1){
+//        autoOverOn = 0;
+//        usbMIDI.sendControlChange(looperAutoOver, 0, 3);
+////        delay(30);
+//      }
+//    }
+
+
+
+
+
+
+
