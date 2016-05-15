@@ -1,0 +1,409 @@
+
+
+//#####################################################
+//#####################################################
+// Open Horn Midi system / "OHMs"
+// Teensy 3.1 - Main Code v0.89c_experimental
+// Copyright 2016, Jeppe Tofthøj Rasmussen
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+
+#include <ADC.h>
+#include <Adafruit_GFX.h>
+#include <i2c_t3.h>
+ADC *adc = new ADC(); // adc object;
+#include <Adafruit_SSD1306.h>
+#include <SPI.h>
+#include <EEPROMex.h>
+
+
+byte debugIMU = 0;
+
+long unsigned IMUtimer;
+long unsigned IMUtime;
+long unsigned lastIMUtime;
+
+unsigned long displayTimer = 0;
+unsigned long lastDisplay = 0;      
+
+
+byte velocity;
+byte lastVelocity;
+byte bend;
+byte lastBend;
+
+
+
+
+
+
+
+#include "genericFunctions.h"
+#include "sensorVariables.h"
+#include "sensorFunctions.h"
+
+#include "MPU9250Functions.h"
+#include "menuContent.h"
+#include "display.h"
+#include "menuFunctions.h"
+
+//#include "EEPROMFunctions.h"
+
+
+
+
+
+#include "calibration.h"
+#include "keys.h"
+
+
+
+
+
+void setup(){
+  Serial.begin(9600);
+  delay(2000);    
+
+  int n;
+  for(n = 0; n < NUMKEYS; n++){
+    pinMode(factKeyPins[n], INPUT);
+  }
+  pinMode(rotEncPin1, INPUT);
+  pinMode(rotEncPin2, INPUT);
+  digitalWrite(rotEncPin1, HIGH);
+  digitalWrite(rotEncPin2, HIGH);
+  
+  pinMode(rotEncButtonPin, INPUT_PULLUP);
+  
+  pinMode(btnPin1, INPUT_PULLUP);
+  pinMode(btnPin2, INPUT_PULLUP);
+  pinMode(btnPin3, INPUT_PULLUP);
+
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, I2C_RATE_400);
+//  byte c = readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);  // Read WHO_AM_I register for MPU-9250
+//  byte d = readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);  // Read WHO_AM_I register for AK8963
+//  
+//  
+
+  // SET UP HIGH RESOLUTION ADC:
+  ///// ADC0 ////
+  // reference can be ADC_REF_3V3, ADC_REF_1V2 (not for Teensy LC) or ADC_REF_EXT.
+  //    //adc->setReference(ADC_REF_3V3, ADC_0); // change all 3.3 to 1.2 if you change the reference to 1V2
+  //    adc->setAveraging(16); // set number of averages
+  //    adc->setResolution(12); // set bits of resolution
+  //    // it can be ADC_VERY_LOW_SPEED, ADC_LOW_SPEED, ADC_MED_SPEED, ADC_HIGH_SPEED_16BITS, ADC_HIGH_SPEED or ADC_VERY_HIGH_SPEED
+  //    // see the documentation for more information
+  //    adc->setConversionSpeed(ADC_HIGH_SPEED); // change the conversion speed
+  //    // it can be ADC_VERY_LOW_SPEED, ADC_LOW_SPEED, ADC_MED_SPEED, ADC_HIGH_SPEED or ADC_VERY_HIGH_SPEED
+  //    adc->setSamplingSpeed(ADC_HIGH_SPEED); // change the sampling speed
+
+  // always call the compare functions after changing the resolution!
+  //    adc->enableCompare(1.0/3.3*adc->getMaxValue(ADC_0), 0, ADC_0); // measurement will be ready if value < 1.0V
+  //    adc->enableCompareRange(1.0*adc->getMaxValue(ADC_0)/3.3, 2.0*adc->getMaxValue(ADC_0)/3.3, 0, 1, ADC_0); // ready if value lies out of [1.0,2.0] V
+
+  ////// ADC1 /////
+  //    #if defined(ADC_TEENSY_3_1)
+  adc->setAveraging(8, ADC_1); // set number of averages
+  adc->setResolution(12, ADC_1); // set bits of resolution
+  adc->setConversionSpeed(ADC_HIGH_SPEED, ADC_1); // change the conversion speed
+  adc->setSamplingSpeed(ADC_MED_SPEED, ADC_1); // change the sampling speed
+
+  // always call the compare functions after changing the resolution!
+  //    adc->enableCompare(1.0/3.3*adc->getMaxValue(ADC_1), 0, ADC_1); // measurement will be ready if value < 1.0V
+  //    adc->enableCompareRange(1.0*adc->getMaxValue(ADC_1)/3.3, 2.0*adc->getMaxValue(ADC_1)/3.3, 0, 1, ADC_1); // ready if value lies out of [1.0,2.0] V
+  //    #endif
+
+  
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3D (for the 128x64)
+  // init done
+  //  Welcome screen:
+  delay(500);
+  display.clearDisplay();
+  display.setTextSize(5);
+  display.setTextColor(WHITE);
+  display.setCursor(8,5);
+  display.println("OHMs");
+  display.display();
+  delay(500);
+  display.setTextSize(1);
+  display.setCursor(2,50);
+  display.print("Open Horn MIDI system");
+//  display.setCursor(29,50);
+//  display.println("MIDI system");
+  display.display();
+  delay(1000);
+  display.clearDisplay(); 
+  display.setCursor(40,20);
+  display.println(" Loading ");
+  display.print("   user settings. ");
+  display.display(); 
+//  loadAllDefaults();
+  delay(1000);
+  display.clearDisplay(); 
+//
+//  displayMainMenu();
+//  display.clearDisplay(); 
+  display.display(); 
+}
+
+
+
+void loop(){
+
+  // Menu call:
+  rotEncButtonRead();
+  if(menuOn == 0 && rotEncButtonPressed == 1){
+    while(rotEncButtonReleased == 0){
+      delay(10);
+      rotEncButtonRead();
+    }
+    rotEncButtonReleased = 0;
+    menuOn = 1;
+    newValueBool = 0;
+    firstTime = 1;
+    updateMenu();
+  } 
+  else if(menuOn == 1){
+    updateMenu();
+  }
+  
+  
+  //Normal function:
+  else{ 
+    quickReadCalBtns();
+    if(btn1Read == 0 || btn2Read == 0 || btn3Read == 0){  
+      calibrationCall();
+    }
+
+  
+  
+  
+    lastVelocity = velocity;
+    velocity = readAnalogSensor_COMPLEX(sensor1Static, velocity, sensor1VectorArray);
+  
+    if(velocity != lastVelocity){
+      if(velocity == 0){
+        if(splitActive == 1){
+          usbMIDI.sendNoteOn(currentSplitLowNote, 0, 1);
+          usbMIDI.sendNoteOn(currentSplitHighNote, 0, 2);        
+        }
+        else{
+          if(sustainActive == 1){
+            usbMIDI.sendNoteOn(currentSustainNote, 0, 1);
+            usbMIDI.sendNoteOn(currentNote, 0, 2);
+            }
+          else{
+            usbMIDI.sendNoteOn(currentNote, 0, 1);
+          }
+        }
+      }
+      else if(lastVelocity == 0){
+        if(correct == 1){
+          if(splitActive == 0){
+            if(sustainActive == 1){
+              usbMIDI.sendNoteOn(currentSustainNote, velocity, 1);
+              usbMIDI.sendNoteOn(currentNote, velocity, 2);
+            }
+            else{
+              usbMIDI.sendNoteOn(currentNote, velocity, 1);
+            }
+          }
+          else{
+            usbMIDI.sendNoteOn(currentSplitLowNote, velocity, 1);
+            usbMIDI.sendNoteOn(currentSplitHighNote, velocity, 2);
+          }
+        }
+      }
+      else{
+        usbMIDI.sendControlChange(2, velocity, 1);
+        usbMIDI.sendControlChange(2, velocity, 2);
+      }
+    }
+  
+  
+    lastBend = bend;
+    bend = readAnalogSensor_COMPLEX(sensor2Static, bend, sensor2VectorArray);
+    if(bend != lastBend){
+      usbMIDI.sendPitchBend(bend, 1);
+      usbMIDI.sendPitchBend(bend, 2);
+    }
+  
+  
+  
+  
+    IMUtime = millis();
+    if(IMUtime - lastIMUtime > 15){
+      lastIMUtime = millis(); 
+      updateIMU();
+    }
+    if(pitchMIDI >= 40){
+      if(rollMIDI != lastRollMIDI){
+       usbMIDI.sendControlChange(1, rollMIDI, 1);
+     usbMIDI.sendControlChange(1, rollMIDI, 2);
+      }
+    }
+    if(pitchMIDI != lastPitchMIDI){
+     usbMIDI.sendControlChange(12, pitchMIDI, 1);
+     usbMIDI.sendControlChange(1, rollMIDI, 2);
+    } 
+  //  if(pitchMIDI > 40){
+  //    rollMIDI = (rollMIDI * (pitchMIDI - 40)) / 87;
+  //    if(rollMIDI != lastRollMIDI){
+  //     usbMIDI.sendControlChange(1, rollMIDI, 1);
+  //     usbMIDI.sendControlChange(1, rollMIDI, 2);
+  //     // usbMIDI.sendControlChange(1, pitchMIDI, 2);
+  //    }
+  //  }
+    if(debugIMU == 2){
+      debugMPU9250();
+    }
+  //  updateIMU();
+  
+   
+    readKeys();  // Read keys, do "key-logic", and generate and send noteOn / noteOff
+  
+    while (usbMIDI.read());
+  }
+//  delay(10);
+
+}
+
+
+  //
+  //// New sensor read functions:
+  //  if(sensor1Static.sensorMode != 0){
+  //    sensor1LastVal = sensor1Val;
+  //    sensor1Val = readAnalogSensor_COMPLEX(sensor1Static, sensor1Val, sensor1VectorArray);
+  //    if(sensor1Val != sensor1LastVal && sensor1Static.sensorMode != 0){
+  //    
+  //    readKeys();
+  //  }
+  //  
+  //  if(sensor2Static.sensorMode != 0){
+  //    sensor2LastVal = sensor2Val;
+  //    sensor2Val = readAnalogSensor_COMPLEX(sensor2Static, sensor2Val, sensor2VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //     
+  //  if(sensor3Static.sensorMode != 0){
+  //    sensor3LastVal = sensor3Val;
+  //    sensor3Val = readAnalogSensor_COMPLEX(sensor3Static, sensor3Val, sensor3VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(sensor4Static.sensorMode != 0){
+  //    sensor4LastVal = sensor4Val;
+  //    sensor4Val = readAnalogSensor_COMPLEX(sensor4Static, sensor4Val, sensor4VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(sensor5Static.sensorMode != 0){
+  //    sensor5LastVal = sensor5Val;
+  //    sensor5Val = readAnalogSensor_COMPLEX(sensor5Static, sensor5Val, sensor5VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(sensor6Static.sensorMode != 0){
+  //    sensor6LastVal = sensor6Val;
+  //    sensor6Val = readAnalogSensor_COMPLEX(sensor6Static, sensor6Val, sensor6VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(sensor7Static.sensorMode != 0){
+  //    sensor7LastVal = sensor7Val;
+  //    sensor7Val = readAnalogSensor_COMPLEX(sensor7Static, sensor7Val, sensor7VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(sensor8Static.sensorMode != 0){
+  //    sensor8LastVal = sensor8Val;
+  //    sensor8Val = readAnalogSensor_COMPLEX(sensor8Static, sensor8Val, sensor8VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(imuPitchStatic.sensorMode != 0){
+  //    imuPitchLastVal = imuPitchVal;
+  //    imuPitchVal = readAnalogSensor_COMPLEX(imuPitchStatic, sensor8Val, imuPitchVectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(imuRollStatic.sensorMode != 0){
+  //    imuRollLastVal = imuRollVal;
+  //    imuRollVal = readAnalogSensor_COMPLEX(imuRollStatic, imuRollVal, imuRollVectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(imuYawStatic.sensorMode != 0){
+  //    imuYawLastVal = imuYawVal;
+  //    imuYawVal = readAnalogSensor_COMPLEX(imuYawStatic, imuYawVal, imuYawVectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(joystick1Static.sensorMode != 0){
+  //    joystick1LastVal = joystick1Val;
+  //    joystick1Val = readAnalogSensor_COMPLEX(joystick1Static, joystick1Val, joystick1VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  //
+  //  if(joystick2Static.sensorMode != 0){
+  //    joystick2LastVal = joystick2Val;
+  //    joystick2Val = readAnalogSensor_COMPLEX(joystick2Static, joystick2Val, joystick2VectorArray);
+  //    
+  //    
+  //    readKeys();
+  //  }
+  
+  
+  
+
+
+
+void readAnalogSensor_SIMPLE(int pin, int *array, int arraySize, int hardMin, int hardMax, int outMin, int outMax){
+}
+
+
+
+void readAnalogSensor_CALIBRATE(){
+}
+
+
+
